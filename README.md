@@ -50,19 +50,29 @@ starts Oct 27. Every scenario restarts from the **same** decision-point state:
 
 ## Architecture
 
-```
- simulated exports (seeded, synthetic)          Databricks Free Edition (serverless, Unity Catalog)
- ┌──────────────────────────────┐  01   ┌───────────────┐  02   ┌────────────────┐  03   ┌──────────────────────┐
- │ ERP  orders, BOM, costs, plan│──────▶│ bronze_*      │──────▶│ silver_*       │──────▶│ gold_*               │
- │ MES  lines, calendar, downtime│      │ raw strings + │       │ typed, conformed│      │ scenarios S0–S3B,    │
- │ WMS  stock, purchase orders  │       │ lineage cols  │       │ + quality checks│      │ balances, orders,    │
- │ QMS  good / reject / scrap   │       └───────────────┘       └────────────────┘       │ costs, sensitivity,  │
- └──────────────────────────────┘                                                        │ validation results   │
-        src/candyops/sources.py        Delta tables in <catalog>.<schema> (default workspace.candyops)
-                                                                                          └──────────┬───────────┘
-   plain-Python core (runs locally without Spark):                                                   │
-   silver.py → validation.py → model.py → simulation.py → metrics.py                    AI/BI dashboard
-                                                                                       sql/dashboard_queries.sql
+```mermaid
+flowchart LR
+  subgraph SRC["Simulated exports (seeded, synthetic)"]
+    ERP["ERP<br/>orders, BOM, costs, plan"]
+    MES["MES<br/>lines, calendar, downtime"]
+    WMS["WMS<br/>stock, purchase orders"]
+    QMS["QMS<br/>good / reject / scrap"]
+  end
+  subgraph DBX["Databricks Free Edition: Delta tables in catalog.schema"]
+    B["bronze_*<br/>raw strings + lineage"]
+    S["silver_*<br/>typed + quality checks"]
+    G["gold_*<br/>scenarios S0-S3B, balances, orders,<br/>costs, sensitivity, validation"]
+  end
+  D["AI/BI dashboard<br/>sql/dashboard_queries.sql"]
+  SRC -- "01 sources_and_bronze" --> B
+  B -- "02 silver_and_quality" --> S
+  S -- "03 gold_and_scenarios" --> G
+  G --> D
+  subgraph CORE["Plain-Python core (runs locally, no Spark)"]
+    direction LR
+    P1[silver.py] --> P2[validation.py] --> P3[model.py] --> P4[simulation.py] --> P5[metrics.py]
+  end
+  CORE -. "imported by notebooks" .-> DBX
 ```
 
 * **Notebook 01** generates the source exports and writes `bronze_*` Delta tables.
