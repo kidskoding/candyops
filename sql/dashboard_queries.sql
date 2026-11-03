@@ -1,11 +1,9 @@
--- =====================================================================================================
 -- CandyOps dashboard datasets (Databricks AI/BI dashboard -> Data -> "Create from SQL", one query each)
 -- SYNTHETIC DATA. All values are modeled outcomes of a rule-based simulation, not observed results.
 -- Tables live in workspace.candyops. If you used another catalog/schema, find-and-replace
 -- "workspace.candyops." below before pasting.
 -- "Ready to ship" = finished bags allocated at the dispatch factory by the end of the deadline day.
 -- It is NOT customer delivery performance.
--- =====================================================================================================
 
 
 -- ds01_scenario_kpis : on-time ready-to-ship rate, cost and constraint per scenario (counters + bar charts)

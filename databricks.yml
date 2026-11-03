@@ -1,5 +1,4 @@
-# Databricks Asset Bundle: one job that runs notebooks 01 -> 02 -> 03 on serverless compute.
-#   databricks bundle deploy -t dev && databricks bundle run -t dev candyops_pipeline
+# databricks bundle deploy -t dev && databricks bundle run -t dev candyops_pipeline
 bundle:
   name: candyops
 

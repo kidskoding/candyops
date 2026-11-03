@@ -1,7 +1,6 @@
 name: Deploy to Databricks
 
-# Runs after CI succeeds on main, only once the repo has a DATABRICKS_HOST variable and a
-# DATABRICKS_TOKEN secret (README: "Continuous deployment"). Until then it is skipped.
+# Skipped until the repo has a DATABRICKS_HOST variable and a DATABRICKS_TOKEN secret (README: CI/CD).
 on:
   workflow_run:
     workflows: [CI]
