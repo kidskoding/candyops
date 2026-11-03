@@ -2,9 +2,9 @@
 
 **Halloween Manufacturing Analytics with Databricks**
 
-> **Synthetic data disclosure.** CandyOps is a demonstration. Every factory, retailer, order, cost, and quantity is
-> fictional and comes from a seeded generator. The source feeds are *simulated* ERP, MES, WMS/procurement, and
-> QMS exports. They are not SAP, Oracle, or any other real integration. The project is not affiliated with any
+> **Synthetic data disclosure**: CandyOps is a demonstration. Every factory, retailer, order, cost, and quantity is
+> fictional and comes from a seeded generator. The source feeds are **simulated** ERP, MES, WMS/procurement, and
+> QMS exports. They are not SAP, Oracle, or any other real integrations!! The project is not affiliated with any
 > confectionery company and does not reflect any company's internal systems or data. All results are modeled
 > outcomes. They are not observed losses or real savings.
 
