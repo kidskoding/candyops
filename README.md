@@ -125,16 +125,6 @@ created time, then order id). An order with deadline D counts as on time only if
 * The planner is a transparent heuristic, not an optimizer. A solver could find better plans.
 * Ready to ship is not customer delivery. Freight to retailers is out of scope.
 
-## 60-second demo walkthrough
-
-1. **(0–10 s)** README story: a sealer fails on Oct 27, and Halloween orders are due Oct 27–30.
-2. **(10–20 s)** Notebook 02: data-quality results (all checks pass) and `silver_line_daily_downtime`, which shows the
-   breakdown split into 16 h / 16 h / 8 h.
-3. **(20–35 s)** Dashboard: no-recovery vs overtime vs transfer ready rates, plus the orders-at-risk table.
-4. **(35–50 s)** Select `S3_TRANSFER`. The "Where spare capacity went" table shows Southgate hours *blocked by Halloween film*,
-   and Oct 30 hours unusable because the trucks would arrive after every deadline.
-5. **(50–60 s)** Sensitivity tile: delivering the film on Oct 27 raises transfer output. The constraint was the wrappers, not the line.
-
 ## Repository layout
 
 ```
