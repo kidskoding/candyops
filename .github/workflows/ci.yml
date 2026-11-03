@@ -50,5 +50,9 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - uses: actions/cache@v4  # Delta jars from Maven; avoids flaky downloads
+        with:
+          path: ~/.ivy2
+          key: ivy-${{ hashFiles('uv.lock') }}
       - run: uv sync --locked --group spark
       - run: uv run --group spark python scripts/spark_smoke.py
