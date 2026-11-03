@@ -1,5 +1,7 @@
 # candyops
 
+[![CI](https://github.com/kidskoding/candyops/actions/workflows/ci.yml/badge.svg)](https://github.com/kidskoding/candyops/actions/workflows/ci.yml)
+
 **Halloween Manufacturing Analytics with Databricks**
 
 > **Synthetic data disclosure**: CandyOps is a demonstration. Every factory, retailer, order, cost, and quantity is
@@ -85,6 +87,7 @@ flowchart LR
 
 ```bash
 uv sync                               # Python 3.11 venv + pytest
+uv run ruff check .                   # lint
 uv run pytest                         # 25 tests, including a hand-checkable example
 uv run python scripts/run_local.py    # writes out/*.csv and regenerates docs/results.md
 # optional, needs Java 17+: local Spark + Delta smoke test of the notebook flow
@@ -93,13 +96,24 @@ uv run --group spark python scripts/spark_smoke.py
 
 ## Run on Databricks Free Edition
 
-1. Put this folder on GitHub (repo `candyops`). In Databricks, go to **Workspace → Create → Git folder** and paste the repo URL.
-   *Without GitHub:* create a workspace folder `candyops`, then use **Import** to upload `src/candyops/*.py` into
-   `candyops/src/candyops/` and `notebooks/*.py` into `candyops/notebooks/`. Keep the same relative layout.
-2. Open `notebooks/01_sources_and_bronze` and attach **Serverless** compute. Run all cells.
-3. Run `02_silver_and_quality`, then `03_gold_and_scenarios`. Each notebook has `catalog` (default `workspace`) and
-   `schema` (default `candyops`) widgets. Use the same values in all three.
+**Option A: click through it (no setup)**
+
+1. In Databricks, go to **Workspace → Create → Git folder** and paste `https://github.com/kidskoding/candyops.git`.
+2. Open `notebooks/01_sources_and_bronze`, attach **Serverless** compute, and click **Run all**.
+3. Run `02_silver_and_quality`, then `03_gold_and_scenarios`. Keep the `catalog` (`workspace`) and `schema`
+   (`candyops`) widgets the same in all three.
 4. Build the dashboard with [`docs/dashboard_setup.md`](docs/dashboard_setup.md) and [`sql/dashboard_queries.sql`](sql/dashboard_queries.sql).
+
+**Option B: one job from your terminal (Databricks Asset Bundle)**
+
+[`databricks.yml`](databricks.yml) defines one job, `candyops-pipeline`, that runs the three notebooks in order on
+serverless compute.
+
+```bash
+databricks auth login --host https://<your-workspace>.cloud.databricks.com
+databricks bundle deploy -t dev
+databricks bundle run -t dev candyops_pipeline
+```
 
 **How the import works:** each notebook adds `<repo>/src` to `sys.path` (the notebook's working directory is its own
 folder, so the repo root is `..`). It also clears cached `candyops` modules, so reruns pick up code edits. If your layout
@@ -107,6 +121,18 @@ differs, set the `repo_root` widget to the absolute workspace path, for example 
 
 **Rerun safety:** the notebooks only `CREATE SCHEMA IF NOT EXISTS` and overwrite tables named `bronze_*`, `silver_*`, or
 `gold_*` inside the project schema. Identifiers are validated before they reach SQL. The same seed always gives the same tables.
+
+## CI/CD
+
+* **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and pull request:
+  ruff, pytest on Python 3.10–3.12, a check that the committed `docs/results.md` still matches the simulation,
+  and a local Spark + Delta run of the notebook flow and every dashboard query.
+* **CD** ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) runs after CI passes on `main`. It validates,
+  deploys, and runs the bundle's `prod` target in your workspace. It is skipped until you add, under
+  **Settings → Secrets and variables → Actions**:
+  * Variable `DATABRICKS_HOST`: your workspace URL
+  * Secret `DATABRICKS_TOKEN`: a Databricks personal access token (**Settings → Developer → Access tokens**).
+    Give it a short lifetime and rotate it.
 
 ## Modeling rules (summary)
 
@@ -143,5 +169,7 @@ notebooks/      01_sources_and_bronze.py, 02_silver_and_quality.py, 03_gold_and_
 sql/            dashboard_queries.sql
 docs/           results.md (generated), dashboard_setup.md
 scripts/        run_local.py, spark_smoke.py
+.github/        CI (lint, tests, results drift, Spark smoke) and CD to Databricks
+databricks.yml  asset bundle: one serverless job running notebooks 01 -> 02 -> 03
 tests/          pytest suite (conservation, capacity, allocation, rejects, arrivals, lead time, deadlines, determinism)
 ```
