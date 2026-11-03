@@ -1,4 +1,6 @@
-# CandyOps — Halloween Manufacturing Analytics with Databricks
+# candyops
+
+**Halloween Manufacturing Analytics with Databricks**
 
 > **Synthetic data disclosure.** CandyOps is a demonstration. Every factory, retailer, order, cost, and quantity is
 > fictional and comes from a seeded generator. The source feeds are *simulated* ERP, MES, WMS/procurement, and
