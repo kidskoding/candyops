@@ -196,20 +196,20 @@ def generate_sources(seed: int = SEED) -> dict[str, list[dict]]:
         for p, v, u, desc in COST_PARAMETERS]
 
     t["mes_lines"] = [
-        {"line_id": l, "factory_id": f, "line_name": n, **_meta(mes, "lines.csv")} for l, f, n in LINES]
+        {"line_id": ln, "factory_id": f, "line_name": n, **_meta(mes, "lines.csv")} for ln, f, n in LINES]
     t["mes_line_capability"] = [
-        {"line_id": l, "sku_id": s, "ideal_rate_bags_per_hour": str(r), "standard_yield": str(y),
-         **_meta(mes, "line_capability.csv")} for l, s, r, y in CAPABILITY]
+        {"line_id": ln, "sku_id": s, "ideal_rate_bags_per_hour": str(r), "standard_yield": str(y),
+         **_meta(mes, "line_capability.csv")} for ln, s, r, y in CAPABILITY]
     t["mes_line_calendar"] = [
-        {"line_id": l, "calendar_date": day.isoformat(),
+        {"line_id": ln, "calendar_date": day.isoformat(),
          "planned_operating_hours": "0" if day.month == 10 and day.day == 31 else "16",
          "overtime_limit_hours": "0" if day.month == 10 and day.day == 31 else str(OVERTIME_LIMIT_HOURS),
          **_meta(mes, "line_calendar.csv")}
-        for l, _, _ in LINES for day in HORIZON]
+        for ln, _, _ in LINES for day in HORIZON]
 
-    rate = {(l, s): (r, y) for l, s, r, y in CAPABILITY}
+    rate = {(ln, s): (r, y) for ln, s, r, y in CAPABILITY}
     recipe_kg = {}
-    for s, m, q, u in RECIPES:
+    for s, _m, q, u in RECIPES:
         if u == "kg":
             recipe_kg[s] = recipe_kg.get(s, 0.0) + q
 
@@ -244,7 +244,8 @@ def generate_sources(seed: int = SEED) -> dict[str, list[dict]]:
                 qa_rows.append({
                     "inspection_id": f"QA-{batch_id}", "batch_id": batch_id, "good_bags": str(good),
                     "rejected_bags": str(reject), "scrap_kg": f"{reject * recipe_kg[sku]:.3f}",
-                    "reject_reason": "Seal integrity / underweight", "inspected_ts": _ts(batch_start + timedelta(hours=run_h)),
+                    "reject_reason": "Seal integrity / underweight",
+                    "inspected_ts": _ts(batch_start + timedelta(hours=run_h)),
                     **_meta(qms, "batch_inspections.csv")})
                 batch_start += timedelta(hours=run_h)
     downtime_rows.append({

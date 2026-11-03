@@ -53,7 +53,7 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
     def fk(name, table, bad):
         _check(res, L, name, table, bad)
 
-    fk("line_factory_exists", "silver_lines", [l for l, f in lines.items() if f not in fac])
+    fk("line_factory_exists", "silver_lines", [ln for ln, f in lines.items() if f not in fac])
     fk("recipe_sku_exists", "silver_recipes", [r["sku_id"] for r in s["silver_recipes"] if r["sku_id"] not in sku])
     fk("recipe_material_exists", "silver_recipes",
        [r["material_id"] for r in s["silver_recipes"] if r["material_id"] not in mat])
@@ -119,8 +119,8 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
             or r["planned_operating_hours"] < 0 or r["overtime_limit_hours"] < 0
             or r["planned_operating_hours"] + r["overtime_limit_hours"] > 24])
     _check(res, L, "calendar_covers_horizon", "silver_line_calendar",
-           [(l, d) for l in lines for d in HORIZON
-            if (l, d) not in {(r["line_id"], r["calendar_date"]) for r in s["silver_line_calendar"]}])
+           [(ln, d) for ln in lines for d in HORIZON
+            if (ln, d) not in {(r["line_id"], r["calendar_date"]) for r in s["silver_line_calendar"]}])
     sched = defaultdict(float)
     for r in s["silver_production_orders"]:
         sched[(r["line_id"], r["production_date"])] += r["planned_hours"] or 0
@@ -223,7 +223,8 @@ def check_results(inputs, results) -> list[dict]:
         shipped = sum(t["bags"] for t in r.logs.transfers)
         arrived = sum(f["transfer_in_bags"] for f in r.logs.finished_goods)
         transit = sum(t["qty"] for t in r.final_state.in_transit)
-        _check(res, L, "transfers_conserved", sid, [] if shipped == arrived + transit else [(shipped, arrived, transit)])
+        _check(res, L, "transfers_conserved", sid,
+               [] if shipped == arrived + transit else [(shipped, arrived, transit)])
         produced = defaultdict(int)
         for p in prod:
             produced[(p["factory_id"] if not p["ship_to"] else p["ship_to"], p["sku_id"])] += p["good_bags"]

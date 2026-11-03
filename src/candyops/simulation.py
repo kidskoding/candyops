@@ -132,7 +132,7 @@ def _material_keys(inputs: Inputs, state: State):
 
 def _fg_keys(inputs: Inputs, state: State):
     keys = set(inputs.opening_fg) | {(o.factory_id, o.sku_id) for o in inputs.orders}
-    keys |= {(inputs.lines[l], s) for (l, s) in inputs.capability}
+    keys |= {(inputs.lines[ln], s) for (ln, s) in inputs.capability}
     return sorted(keys | set(state.fg))
 
 
@@ -176,7 +176,7 @@ def step_day(state: State, inputs: Inputs, day: date, runs: list, downtime: dict
 
     # 3. production
     windows = line_windows(inputs, day, downtime)
-    left = {l: {"std": w["std"], "ot": w["ot"]} for l, w in windows.items()}
+    left = {ln: {"std": w["std"], "ot": w["ot"]} for ln, w in windows.items()}
     sched = defaultdict(float)
     runtime = defaultdict(float)
     consumed, shortfall = defaultdict(float), defaultdict(float)
@@ -283,7 +283,8 @@ def step_day(state: State, inputs: Inputs, day: date, runs: list, downtime: dict
     for k in _fg_keys(inputs, state):
         logs.finished_goods.append({
             "scenario_id": scenario_id, "date": day, "phase": phase, "factory_id": k[0], "sku_id": k[1],
-            "opening_bags": open_fg.get(k, 0), "transfer_in_bags": transfer_in[k], "produced_to_stock_bags": to_stock[k],
+            "opening_bags": open_fg.get(k, 0), "transfer_in_bags": transfer_in[k],
+            "produced_to_stock_bags": to_stock[k],
             "produced_shipped_bags": shipped[k], "allocated_bags": allocated[k], "closing_bags": state.fg.get(k, 0)})
 
 

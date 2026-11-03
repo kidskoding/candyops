@@ -26,7 +26,7 @@ def tiny_inputs(**over) -> Inputs:
         factories={"F1": {"factory_id": "F1"}, "F2": {"factory_id": "F2"}},
         lines={"L1": "F1", "L2": "F2"},
         capability={("L1", "X"): (100.0, 0.9), ("L2", "X"): (100.0, 0.9)},
-        calendar={(l, d): (10.0, 2.0) for l in ("L1", "L2") for d in (D0, D1, D2)},
+        calendar={(ln, d): (10.0, 2.0) for ln in ("L1", "L2") for d in (D0, D1, D2)},
         downtime_minor={},
         downtime_breakdown={},
         recipes={"X": {"ING": 0.5, "WRAP": 1.0}},

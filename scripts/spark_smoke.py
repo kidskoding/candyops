@@ -66,7 +66,7 @@ def main() -> int:
               f"FROM {fqn(CATALOG, SCHEMA, 'gold_scenario_summary')} ORDER BY scenario_id").show(truncate=False)
     # every dashboard dataset must parse and return rows against the Delta tables
     sql_text = (ROOT / "sql" / "dashboard_queries.sql").read_text()
-    body = "\n".join(l for l in sql_text.splitlines() if not l.strip().startswith("--"))
+    body = "\n".join(ln for ln in sql_text.splitlines() if not ln.strip().startswith("--"))
     queries = [q.strip() for q in body.split(";") if q.strip()]
     empty = []
     for q in queries:

@@ -1,7 +1,7 @@
+from conftest import D0, D1, D2, tiny_inputs
+
 from candyops.model import Run
 from candyops.simulation import Logs, new_state, plan_recovery, step_day
-
-from conftest import D0, D1, D2, tiny_inputs
 
 
 def test_transfer_respects_lead_time_and_dispatch_factory():
@@ -32,6 +32,7 @@ def test_planner_skips_transfer_slots_that_arrive_too_late():
 
 def test_overtime_planner_stays_within_limits_and_skips_down_lines():
     from datetime import datetime
+
     from candyops.model import Order
     # B needs 1500 good bags by D2; baseline D1 gives 900, so overtime is required (A on D0 is unrecoverable).
     inputs = tiny_inputs(opening_raw={("F1", "ING"): 10_000.0, ("F1", "WRAP"): 10_000.0},

@@ -27,8 +27,9 @@ SPEC: dict[str, tuple[str, dict[str, str]]] = {
     "mes_lines": ("silver_lines", {"line_id": "str", "factory_id": "str", "line_name": "str"}),
     "mes_line_capability": ("silver_line_capability", {"line_id": "str", "sku_id": "str",
                                                        "ideal_rate_bags_per_hour": "float", "standard_yield": "float"}),
-    "mes_line_calendar": ("silver_line_calendar", {"line_id": "str", "calendar_date": "date",
-                                                   "planned_operating_hours": "float", "overtime_limit_hours": "float"}),
+    "mes_line_calendar": ("silver_line_calendar", {
+        "line_id": "str", "calendar_date": "date", "planned_operating_hours": "float",
+        "overtime_limit_hours": "float"}),
     "mes_downtime_events": ("silver_downtime_events", {"event_id": "str", "line_id": "str", "start_ts": "ts",
                                                        "end_ts": "ts", "reason": "str", "event_type": "str"}),
     "mes_production_actuals": ("silver_production_actuals", {
@@ -57,7 +58,9 @@ def _cast(value, kind: str):
     if kind == "float":
         return float(value)
     if kind == "date":
-        return value if isinstance(value, date) and not isinstance(value, datetime) else date.fromisoformat(str(value)[:10])
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return value
+        return date.fromisoformat(str(value)[:10])
     if kind == "ts":
         return value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
     raise ValueError(kind)
@@ -65,7 +68,7 @@ def _cast(value, kind: str):
 
 def daily_downtime(events: list[dict], lines: list[dict], factories: list[dict], days=HORIZON) -> list[dict]:
     """Split downtime events into hours per line per day, clipped to that factory's shift window."""
-    fac_of = {l["line_id"]: l["factory_id"] for l in lines}
+    fac_of = {ln["line_id"]: ln["factory_id"] for ln in lines}
     shift = {f["factory_id"]: (f["shift_start_hour"], f["shift_hours"]) for f in factories}
     out = {}
     for e in events:

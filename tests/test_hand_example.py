@@ -9,9 +9,9 @@ Day D1: PO1 brings 1000 WRAP at start of day. ING left 50 kg -> 100 bags -> ING 
 Day D2: nothing scheduled. B ends 410 short. A rejected bag still consumed its ingredients and film.
 """
 
-from candyops.simulation import Logs, new_state, step_day
-
 from conftest import D0, D1, D2, tiny_inputs
+
+from candyops.simulation import Logs, new_state, step_day
 
 
 def run_tiny(inputs):
@@ -24,8 +24,9 @@ def run_tiny(inputs):
 def test_hand_example_matches_hand_calculation():
     state, logs = run_tiny(tiny_inputs())
     p0, p1 = logs.production
-    assert (p0["total_bags"], p0["good_bags"], p0["reject_bags"], p0["limiting_factor"]) == (500, 450, 50, "material:WRAP")
-    assert (p1["total_bags"], p1["good_bags"], p1["reject_bags"], p1["limiting_factor"]) == (100, 90, 10, "material:ING")
+    cols = ("total_bags", "good_bags", "reject_bags", "limiting_factor")
+    assert tuple(p0[c] for c in cols) == (500, 450, 50, "material:WRAP")
+    assert tuple(p1[c] for c in cols) == (100, 90, 10, "material:ING")
     assert state.remaining == {"A": 0, "B": 410}
     assert state.raw[("F1", "ING")] == 0
     assert state.raw[("F1", "WRAP")] == 900
@@ -36,7 +37,8 @@ def test_hand_example_matches_hand_calculation():
 
 def test_rejects_consume_materials_but_never_fulfil_demand():
     state, logs = run_tiny(tiny_inputs())
-    consumed_wrap = sum(m["consumed_qty"] for m in logs.materials if m["material_id"] == "WRAP" and m["factory_id"] == "F1")
+    consumed_wrap = sum(m["consumed_qty"] for m in logs.materials
+                        if m["material_id"] == "WRAP" and m["factory_id"] == "F1")
     total = sum(p["total_bags"] for p in logs.production)
     good = sum(p["good_bags"] for p in logs.production)
     assert consumed_wrap == total == 600  # film consumed for good AND rejected bags
@@ -84,6 +86,7 @@ def test_full_day_breakdown_removes_overtime_too():
 
 def test_edf_allocation_with_deterministic_tiebreak():
     from datetime import datetime
+
     from candyops.model import Order
     inputs = tiny_inputs(opening_fg={("F1", "X"): 100, ("F2", "X"): 0}, plan_runs=[],
                          orders=[Order("Z-late", "c", "F1", "X", 100, D2, datetime(2026, 10, 1)),

@@ -76,7 +76,7 @@ def build_inputs(silver: dict[str, list[dict]], days=HORIZON, decision_date=DECI
             breakdown[(r["line_id"], r["downtime_date"])] = float(r["breakdown_hours"])
         if r["minor_stop_hours"]:
             minor[(r["line_id"], r["downtime_date"])] = float(r["minor_stop_hours"])
-    affected = sorted({l for (l, _d) in breakdown})
+    affected = sorted({ln for (ln, _d) in breakdown})
     recipes: dict[str, dict[str, float]] = {}
     for r in silver["silver_recipes"]:
         recipes.setdefault(r["sku_id"], {})[r["material_id"]] = float(r["qty_per_bag"])

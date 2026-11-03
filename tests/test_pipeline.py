@@ -130,6 +130,7 @@ def test_spark_io_helpers_without_spark():
 def test_row_order_does_not_change_results(pipeline):
     """Spark collect() returns rows in arbitrary order; gold must not depend on it."""
     import random
+
     from candyops.pipeline import build_gold
     silver = copy.deepcopy(pipeline["silver"])
     rng = random.Random(7)
@@ -138,6 +139,7 @@ def test_row_order_does_not_change_results(pipeline):
     shuffled = build_gold(silver)
     for name in ("gold_scenario_summary", "gold_sensitivity", "gold_validation_results"):
         assert shuffled[name] == pipeline["gold"][name]
-    key = lambda r: repr(sorted((k, repr(v)) for k, v in r.items()))
+    def key(r):
+        return repr(sorted((k, repr(v)) for k, v in r.items()))
     for name in ("gold_order_fulfillment", "gold_material_balance", "gold_daily_line_production"):
         assert sorted(shuffled[name], key=key) == sorted(pipeline["gold"][name], key=key)
