@@ -1,0 +1,37 @@
+name: Deploy to Databricks
+
+# Runs after CI succeeds on main, only once the repo has a DATABRICKS_HOST variable and a
+# DATABRICKS_TOKEN secret (README: "Continuous deployment"). Until then it is skipped.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-databricks
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.DATABRICKS_HOST != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: databricks/setup-cli@main  # install path recommended in Databricks docs
+      - run: databricks bundle validate -t prod
+      - run: databricks bundle deploy -t prod
+      - name: Run the pipeline job and wait for it
+        run: databricks bundle run -t prod candyops_pipeline
