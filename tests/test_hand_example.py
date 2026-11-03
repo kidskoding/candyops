@@ -56,7 +56,7 @@ def test_supplier_arrival_cannot_be_consumed_early():
 
 def test_output_after_deadline_is_not_allocated_and_becomes_exposure():
     inputs = tiny_inputs(opening_raw={("F1", "ING"): 10_000.0, ("F1", "WRAP"): 10_000.0})
-    inputs.orders[:] = [o for o in inputs.orders if o.order_id == "A"]  # only A, due D0
+    inputs.orders[:] = [o for o in inputs.orders if o.order_id == "A"]
     state, logs = run_tiny(inputs)
     assert state.remaining["A"] == 0
     assert all(a["date"] <= D0 for a in logs.allocations)

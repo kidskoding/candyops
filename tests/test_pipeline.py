@@ -99,7 +99,6 @@ def test_breakdown_creates_risk_and_reference_is_clean(pipeline):
     at_risk = [o for o in pipeline["gold"]["gold_order_fulfillment"]
                if o["scenario_id"] == "S1_NO_RECOVERY" and o["at_risk_after_breakdown"]]
     assert at_risk and all(o["dispatch_factory_id"] == "NFD" for o in at_risk)
-    # recovery options never do worse than no recovery
     for sid in ("S2_OVERTIME", "S3_TRANSFER", "S3B_TRANSFER_EARLY_WRAPPERS"):
         assert s[sid]["bags_ready_on_time"] >= s["S1_NO_RECOVERY"]["bags_ready_on_time"]
         assert s[sid]["incremental_cost_usd"] >= 0

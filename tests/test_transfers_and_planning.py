@@ -37,11 +37,11 @@ def test_overtime_planner_stays_within_limits_and_skips_down_lines():
     inputs = tiny_inputs(opening_raw={("F1", "ING"): 10_000.0, ("F1", "WRAP"): 10_000.0},
                          orders=[Order("A", "c", "F1", "X", 450, D0, datetime(2026, 10, 1, 9)),
                                  Order("B", "c", "F1", "X", 1500, D2, datetime(2026, 10, 1, 10))])
-    downtime = {("L1", D0): 10.0}  # full-day breakdown on D0
+    downtime = {("L1", D0): 10.0}
     baseline = list(inputs.plan_runs)
     runs, _ = plan_recovery(new_state(inputs), inputs, "overtime", baseline, downtime, "T")
     assert runs, "expected overtime to be planned for order B"
-    assert all(r.date != D0 for r in runs)  # no overtime on a line that is down all day
+    assert all(r.date != D0 for r in runs)
     per_day = {}
     for r in runs:
         per_day[(r.line_id, r.date)] = per_day.get((r.line_id, r.date), 0) + r.hours

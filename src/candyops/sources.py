@@ -213,7 +213,6 @@ def generate_sources(seed: int = SEED) -> dict[str, list[dict]]:
         if u == "kg":
             recipe_kg[s] = recipe_kg.get(s, 0.0) + q
 
-    # --- actual history (before the decision date): minor stops, batch output, quality ---
     downtime_rows, actual_rows, qa_rows = [], [], []
     history_days = [i for i, day in enumerate(HORIZON) if day < DECISION_DATE]
     for line, _, _ in LINES:

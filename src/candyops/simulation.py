@@ -31,7 +31,7 @@ from .sources import SENSITIVITY_PO_IDS
 
 EPS = 1e-9
 RUN_ORDER = {"actual": 0, "baseline": 0, "overtime": 1, "transfer": 2}
-HOUR_STEP = 0.25  # planner schedules recovery in quarter-hours
+HOUR_STEP = 0.25
 
 
 def floor_units(x: float) -> int:
@@ -109,7 +109,6 @@ def default_scenarios(decision_date: date) -> list[Scenario]:
     ]
 
 
-# ----------------------------------------------------------------------------------------------- engine
 
 def new_state(inputs: Inputs) -> State:
     return State(raw=dict(inputs.opening_raw), fg=dict(inputs.opening_fg),
@@ -288,7 +287,6 @@ def step_day(state: State, inputs: Inputs, day: date, runs: list, downtime: dict
             "produced_shipped_bags": shipped[k], "allocated_bags": allocated[k], "closing_bags": state.fg.get(k, 0)})
 
 
-# -------------------------------------------------------------------------------------- history & planning
 
 def replay_history(inputs: Inputs) -> tuple[State, Logs]:
     """Apply recorded actuals (Oct 25-26). Produces the shared decision-point state."""

@@ -5,7 +5,7 @@ from datetime import date, timedelta
 SEED = 20261027
 HORIZON_START = date(2026, 10, 25)
 HORIZON_DAYS = 7
-HORIZON = [HORIZON_START + timedelta(days=i) for i in range(HORIZON_DAYS)]  # Oct 25..31
+HORIZON = [HORIZON_START + timedelta(days=i) for i in range(HORIZON_DAYS)]
 DECISION_DATE = date(2026, 10, 27)  # breakdown day; decision taken at the start of this day
 HALLOWEEN = date(2026, 10, 31)
 

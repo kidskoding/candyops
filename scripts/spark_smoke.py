@@ -40,17 +40,14 @@ def main() -> int:
     spark.sparkContext.setLogLevel("ERROR")
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{CATALOG}`.`{SCHEMA}`")
 
-    # notebook 01
     for name, rows in generate_sources().items():
         write_table(spark, rows, CATALOG, SCHEMA, f"bronze_{name}")
-    # notebook 02
     bronze = {name: read_table(spark, CATALOG, SCHEMA, f"bronze_{name}") for name in SPEC}
     silver = normalize(bronze)
     for name, rows in silver.items():
         write_table(spark, rows, CATALOG, SCHEMA, name)
     checks = check_sources(silver)
     write_table(spark, checks, CATALOG, SCHEMA, "silver_quality_checks")
-    # notebook 03
     silver_back = {t: read_table(spark, CATALOG, SCHEMA, t)
                    for t in [s for s, _ in SPEC.values()] + ["silver_line_daily_downtime"]}
     gold = build_gold(silver_back)

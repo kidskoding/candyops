@@ -16,7 +16,6 @@ def _check(results, layer, name, table, failures, detail=""):
                     "detail": detail if not failures else "; ".join(map(str, failures[:5]))})
 
 
-# ------------------------------------------------------------------------------------------ silver checks
 
 PRIMARY_KEYS = {
     "silver_factories": ("factory_id",), "silver_products": ("sku_id",), "silver_materials": ("material_id",),
@@ -89,7 +88,6 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
     inspected = {r["batch_id"] for r in s["silver_quality_inspections"]}
     fk("batch_has_inspection", "silver_production_actuals", sorted(set(batches) - inspected))
 
-    # units of measure
     _check(res, L, "recipe_uom_matches_material", "silver_recipes",
            [(r["sku_id"], r["material_id"]) for r in s["silver_recipes"]
             if r["material_id"] in mat and r["uom"] != mat[r["material_id"]]["uom"]])
@@ -105,7 +103,6 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
            [(r["sku_id"], r["material_id"]) for r in s["silver_recipes"] if r["material_id"] in mat
             and mat[r["material_id"]]["category"] == "seasonal_packaging" and r["qty_per_bag"] != 1])
 
-    # value ranges
     _check(res, L, "positive_quantities", "silver_customer_orders",
            [r["order_id"] for r in s["silver_customer_orders"] if not r["order_qty_bags"] or r["order_qty_bags"] <= 0])
     _check(res, L, "positive_quantities", "silver_purchase_orders",
@@ -134,7 +131,6 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
     _check(res, L, "required_cost_parameters_present", "silver_cost_parameters",
            [p for p in REQUIRED_PARAMS if p not in params])
 
-    # dates and timestamps
     _check(res, L, "event_end_after_start", "silver_downtime_events",
            [r["event_id"] for r in s["silver_downtime_events"]
             if r["start_ts"] is None or r["end_ts"] is None or r["end_ts"] <= r["start_ts"]])
@@ -154,7 +150,6 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
            [r["inspection_id"] for r in s["silver_quality_inspections"] if r["batch_id"] in batches
             and r["inspected_ts"] < batches[r["batch_id"]]["batch_start_ts"]])
 
-    # production / quality reconciliation
     _check(res, L, "good_plus_reject_equals_total", "silver_quality_inspections",
            [r["batch_id"] for r in s["silver_quality_inspections"] if r["batch_id"] in batches
             and r["good_bags"] + r["rejected_bags"] != batches[r["batch_id"]]["total_bags"]])
@@ -167,7 +162,6 @@ def check_sources(s: dict[str, list[dict]]) -> list[dict]:
     return res
 
 
-# ------------------------------------------------------------------------------------------- gold checks
 
 def check_results(inputs, results) -> list[dict]:
     res: list[dict] = []

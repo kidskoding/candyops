@@ -139,7 +139,7 @@ created time, then order id). An order with deadline D counts as on time only if
 src/candyops/   config, sources (generator), silver, validation, model, simulation, metrics, pipeline, spark_io
 notebooks/      01_sources_and_bronze.py, 02_silver_and_quality.py, 03_gold_and_scenarios.py  (Databricks source format)
 sql/            dashboard_queries.sql
-docs/           results.md (generated), dashboard_setup.md, linkedin_draft.md
+docs/           results.md (generated), dashboard_setup.md
 scripts/        run_local.py, spark_smoke.py
 tests/          pytest suite (conservation, capacity, allocation, rejects, arrivals, lead time, deadlines, determinism)
 ```
