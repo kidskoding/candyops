@@ -8,3 +8,4 @@ metastore_db/
 derby.log
 .env
 .ruff_cache/
+docs/linkedin_draft.md
