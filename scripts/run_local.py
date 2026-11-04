@@ -72,9 +72,13 @@ def results_md(out) -> str:
     cap = [c for c in g["gold_recovery_capacity"] if c["scenario_id"] in ("S2_OVERTIME", "S3_TRANSFER",
                                                                           "S3B_TRANSFER_EARLY_WRAPPERS")
            and (c["spare_hours"] > 0 or c["status"].startswith("unavailable"))]
-    options = [s[k] for k in ("S1_NO_RECOVERY", "S2_OVERTIME", "S3_TRANSFER", "S3B_TRANSFER_EARLY_WRAPPERS")]
-    s1, s2, s3, s3b = options
-    best = max(options[1:3], key=lambda r: r["bags_ready_on_time"])
+    options = [s[k] for k in ("S1_NO_RECOVERY", "S2_OVERTIME", "S3_TRANSFER", "S3B_TRANSFER_EARLY_WRAPPERS",
+                              "S4_OVERTIME_AND_TRANSFER")]
+    s1, s2, s3, s3b, s4 = options
+    best = max((s2, s3, s4), key=lambda r: r["bags_ready_on_time"])
+    sweep = g["gold_sweep"]
+    film = [r for r in sweep if r["sweep_name"] == "film_delivery_date"]
+    caps = [r for r in sweep if r["sweep_name"] == "overtime_cap_hours"]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     md = f"""# CandyOps — Simulation Results
@@ -133,12 +137,14 @@ Orders fully ready in every scenario (unaffected by the breakdown): {", ".join(u
   days it is down all day, and overtime is capped at 4 h per line-day; line A2 cannot make Chocolate Monster.
 * **S3 (transfer):** {s3['primary_constraint']} — {s3['constraint_detail']}.
 * **S3B sensitivity (film delivered Oct 27):** {s3b['primary_constraint']} — {s3b['constraint_detail']}.
+* **S4 (overtime + transfer):** {s4['primary_constraint']} — {s4['constraint_detail']}.
 
 ## 3. How much demand can each option make ready on time, and at what incremental cost?
 
 * S2 overtime: {fmt(s2['bags_ready_on_time'])} bags ({fmt(s2['on_time_ready_rate_bags'], pct=True)}), +{fmt(s2['incremental_ready_bags_vs_s1'])} vs S1, for {fmt(s2['incremental_cost_usd'], money=True)}.
 * S3 transfer: {fmt(s3['bags_ready_on_time'])} bags ({fmt(s3['on_time_ready_rate_bags'], pct=True)}), +{fmt(s3['incremental_ready_bags_vs_s1'])} vs S1, for {fmt(s3['incremental_cost_usd'], money=True)}.
-* Of the two real options, **{best['scenario_id']}** makes the most bags ready on time.
+* S4 overtime + transfer: {fmt(s4['bags_ready_on_time'])} bags ({fmt(s4['on_time_ready_rate_bags'], pct=True)}), +{fmt(s4['incremental_ready_bags_vs_s1'])} vs S1, for {fmt(s4['incremental_cost_usd'], money=True)}.
+* Of the recovery options, **{best['scenario_id']}** makes the most bags ready on time.
 
 ## 4. When does spare capacity fail to translate into usable output?
 
@@ -157,7 +163,21 @@ Orders fully ready in every scenario (unaffected by the breakdown): {", ".join(u
 Change: {sens['delta_bags_ready_on_time']:+,} bags. **{sens['verdict']}** With film available, the next limits are
 {sens['test_constraint_detail']}.
 
-## 6. Seasonal inventory exposure after Oct 31
+## 6. Sweeps — how late can the film arrive, and how much overtime is worth it?
+
+Each row is a full simulation from the same Oct 27 state, changing one input.
+
+**Southgate Halloween film delivery date** (the purchase orders actually arrive Oct 30):
+
+{table(film, [("Option", "option"), ("Film arrives", "param_value"), ("Bags ready on time", "bags_ready_on_time"),
+              ("Ready rate", "on_time_ready_rate_bags", {"pct": True}), ("Incremental cost", "incremental_cost_usd", {"money": True}),
+              ("Cost per extra bag", "cost_per_incremental_ready_bag_usd", {"money": True}), ("Primary constraint", "primary_constraint")])}
+**Overtime cap at Northfield** (hours per line-day; 4 h is the S2 assumption, 8 h means 24-hour running):
+
+{table(caps, [("Overtime cap (h)", "param_value"), ("Bags ready on time", "bags_ready_on_time"),
+              ("Ready rate", "on_time_ready_rate_bags", {"pct": True}), ("Incremental cost", "incremental_cost_usd", {"money": True}),
+              ("Cost per extra bag", "cost_per_incremental_ready_bag_usd", {"money": True}), ("Primary constraint", "primary_constraint")])}
+## 7. Seasonal inventory exposure after Oct 31
 
 {table(options + [s['S0_REFERENCE_NO_BREAKDOWN']],
        [("Scenario", "scenario_id"), ("Halloween bags left", "seasonal_fg_remaining_bags"),
