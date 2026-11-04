@@ -9,7 +9,8 @@
         "  MAX(CASE WHEN metric = 'duplicate_barcode_rows_dropped' THEN value END) AS duplicates_dropped,\n",
         "  MAX(CASE WHEN metric = 'candies_with_enough_evidence' THEN value END) AS candies_with_evidence,\n",
         "  MAX(CASE WHEN metric = 'ranked_candies' THEN value END) AS ranked_candies,\n",
-        "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept\n",
+        "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept,\n",
+        "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'free_of_all_six') AS all_six_kept\n",
         "FROM gold_data_quality"
       ]
     },
@@ -89,12 +90,10 @@
       "layout": [
         {
           "widget": {
-            "name": "header",
+            "name": "title",
             "multilineTextboxSpec": {
               "lines": [
-                "# CandyOps: which Halloween candy can every kid eat?\n",
-                "\n",
-                "Popularity comes from 269,000 head-to-head votes (FiveThirtyEight). Allergens come from 356,001 crowdsourced Open Food Facts products, cleaned and matched with dbt. Each bowl is the 10 most popular candies whose labels list none of the restricted allergens."
+                "# CandyOps: Allergy-Safe Halloween Candy"
               ]
             }
           },
@@ -102,7 +101,23 @@
             "x": 0,
             "y": 0,
             "width": 12,
-            "height": 3
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Popularity comes from 269,000 head-to-head votes in FiveThirtyEight's Candy Power Ranking. Allergen status comes from 356,001 Open Food Facts products, cleaned and matched with dbt. Each bowl contains the 10 most popular candies whose labels list none of the restricted allergens."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 2
           }
         },
         {
@@ -129,7 +144,7 @@
               "encodings": {
                 "value": {
                   "fieldName": "products_scanned",
-                  "displayName": "Products scanned",
+                  "displayName": "Products analyzed",
                   "format": {
                     "type": "number",
                     "abbreviation": "compact",
@@ -142,55 +157,14 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Products scanned"
+                "title": "Products analyzed",
+                "showDescription": true,
+                "description": "Open Food Facts records loaded and cleaned"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 3,
-            "width": 3,
-            "height": 3
-          }
-        },
-        {
-          "widget": {
-            "name": "kpi-duplicates",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "ds_kpi",
-                  "fields": [
-                    {
-                      "name": "duplicates_dropped",
-                      "expression": "`duplicates_dropped`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "widgetType": "counter",
-              "encodings": {
-                "value": {
-                  "fieldName": "duplicates_dropped",
-                  "displayName": "Duplicate barcodes dropped",
-                  "format": {
-                    "type": "number-plain"
-                  }
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Duplicate barcodes dropped"
-              }
-            }
-          },
-          "position": {
-            "x": 3,
             "y": 3,
             "width": 3,
             "height": 3
@@ -233,12 +207,14 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Candies with allergen evidence"
+                "title": "Candies with allergen evidence",
+                "showDescription": true,
+                "description": "At least two matched products with ingredients"
               }
             }
           },
           "position": {
-            "x": 6,
+            "x": 3,
             "y": 3,
             "width": 3,
             "height": 3
@@ -268,7 +244,7 @@
               "encodings": {
                 "value": {
                   "fieldName": "peanut_free_kept",
-                  "displayName": "Peanut-free bowl keeps",
+                  "displayName": "Peanut-free bowl",
                   "format": {
                     "type": "number-percent",
                     "decimalPlaces": {
@@ -280,7 +256,58 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Peanut-free bowl keeps"
+                "title": "Peanut-free bowl",
+                "showDescription": true,
+                "description": "Share of the unrestricted bowl's popularity retained"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-all-six",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_kpi",
+                  "fields": [
+                    {
+                      "name": "all_six_kept",
+                      "expression": "`all_six_kept`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "all_six_kept",
+                  "displayName": "Free of all six allergens",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Free of all six allergens",
+                "showDescription": true,
+                "description": "Peanut, tree nut, milk, gluten, soy and egg"
               }
             }
           },
@@ -332,7 +359,7 @@
                   "scale": {
                     "type": "quantitative"
                   },
-                  "displayName": "Popularity kept",
+                  "displayName": "Popularity retained",
                   "format": {
                     "type": "number-percent",
                     "decimalPlaces": {
@@ -341,13 +368,51 @@
                     }
                   }
                 },
+                "color": {
+                  "fieldName": "restriction_label",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "1 No restriction",
+                        "color": "#8B8B99"
+                      },
+                      {
+                        "value": "2 Peanut-free",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "3 Nut-free",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "4 Milk-free",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "5 Gluten-free",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "6 Free of all six",
+                        "color": "#F97316"
+                      }
+                    ]
+                  },
+                  "displayName": "Restriction",
+                  "legend": {
+                    "hide": true
+                  }
+                },
                 "label": {
                   "show": true
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "How much of the best bowl's popularity each restriction keeps"
+                "title": "Popularity retained by each restriction",
+                "showDescription": true,
+                "description": "Average win rate of each bowl compared with the unrestricted bowl"
               }
             }
           },
@@ -399,11 +464,11 @@
                   },
                   {
                     "fieldName": "candies_allowed",
-                    "displayName": "Candies allowed"
+                    "displayName": "Eligible candies"
                   },
                   {
                     "fieldName": "popularity_kept",
-                    "displayName": "Popularity kept",
+                    "displayName": "Popularity retained",
                     "format": {
                       "type": "number-percent",
                       "decimalPlaces": {
@@ -420,7 +485,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "The bowls"
+                "title": "Recommended bowls"
               }
             }
           },
@@ -512,7 +577,7 @@
                   },
                   {
                     "fieldName": "win_rate",
-                    "displayName": "Wins",
+                    "displayName": "Win rate",
                     "format": {
                       "type": "number-percent",
                       "decimalPlaces": {
@@ -531,7 +596,7 @@
                   },
                   {
                     "fieldName": "evidence_scope",
-                    "displayName": "Evidence from"
+                    "displayName": "Evidence source"
                   },
                   {
                     "fieldName": "peanut",
@@ -559,13 +624,15 @@
                   },
                   {
                     "fieldName": "sugars_100g",
-                    "displayName": "Sugar g/100g"
+                    "displayName": "Sugar (g/100 g)"
                   }
                 ]
               },
               "frame": {
                 "showTitle": true,
-                "title": "Every ranked candy (contains / varies / may_contain block a bowl; unknown means no ingredient list was found)"
+                "title": "Allergen status of every ranked candy",
+                "showDescription": true,
+                "description": "A candy is excluded from a bowl when its status is contains, varies or may_contain. Unknown means no matched product had an ingredient list."
               }
             }
           },
@@ -633,13 +700,15 @@
                   },
                   {
                     "fieldName": "non_candy_products",
-                    "displayName": "Not candy (creamer, ice cream...)"
+                    "displayName": "Non-candy matches"
                   }
                 ]
               },
               "frame": {
                 "showTitle": true,
-                "title": "Matching on the name alone vs curated rules"
+                "title": "Name matching compared with curated rules",
+                "showDescription": true,
+                "description": "Matching on the name alone pulls in coffee creamer, ice cream and cereal"
               }
             }
           },
@@ -647,7 +716,7 @@
             "x": 0,
             "y": 21,
             "width": 6,
-            "height": 4
+            "height": 6
           }
         },
         {
@@ -697,7 +766,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "What cleaning found"
+                "title": "Data-cleaning results"
               }
             }
           },
@@ -713,7 +782,7 @@
             "name": "footer",
             "multilineTextboxSpec": {
               "lines": [
-                "Data: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle. Allergen flags are parsed from crowdsourced ingredient lists, are not medical advice, and can be out of date: always read the package label. Each bowl and matching method is also logged to MLflow (experiment candyops-candy-bowls)."
+                "Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle. Allergen status is parsed from crowdsourced ingredient lists, is not medical advice, and may be out of date. Always check the package label. Each bowl and matching method is logged to the MLflow experiment candyops-candy-bowls."
               ]
             }
           },
@@ -740,8 +809,8 @@
         "dark": "#1E1726"
       },
       "widgetBorderColor": {
-        "light": "#F1E6DA",
-        "dark": "#2A2133"
+        "light": "#FFFFFF",
+        "dark": "#1E1726"
       },
       "fontColor": {
         "light": "#1F1A24",
@@ -759,7 +828,9 @@
         "#C4B5FD",
         "#16A34A"
       ],
-      "widgetHeaderAlignment": "LEFT"
+      "widgetHeaderAlignment": "LEFT",
+      "widgetCornerRadius": 12,
+      "fontFamily": "Inter"
     }
   }
 }

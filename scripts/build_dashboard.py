@@ -30,7 +30,8 @@ SELECT
   MAX(CASE WHEN metric = 'duplicate_barcode_rows_dropped' THEN value END) AS duplicates_dropped,
   MAX(CASE WHEN metric = 'candies_with_enough_evidence' THEN value END) AS candies_with_evidence,
   MAX(CASE WHEN metric = 'ranked_candies' THEN value END) AS ranked_candies,
-  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept
+  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept,
+  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'free_of_all_six') AS all_six_kept
 FROM gold_data_quality""")},
     {"name": "ds_bowls", "displayName": "Bowls by restriction", "queryLines": ql(f"""
 SELECT
@@ -93,7 +94,7 @@ def text(name, lines, x, y, w, h):
     return {"widget": {"name": name, "multilineTextboxSpec": {"lines": lines}}, "position": pos(x, y, w, h)}
 
 
-def counter(name, title, col, fmt, x, template=None):
+def counter(name, title, col, fmt, x, description, template=None):
     enc = {"fieldName": col, "displayName": title, "format": fmt}
     cols = [col]
     if template:
@@ -101,61 +102,80 @@ def counter(name, title, col, fmt, x, template=None):
         cols.append(extra)
     return {"widget": {"name": name, "queries": q("ds_kpi", cols),
                        "spec": {"version": 2, "widgetType": "counter", "encodings": {"value": enc},
-                                "frame": {"showTitle": True, "title": title}}},
+                                "frame": {"showTitle": True, "title": title,
+                                          "showDescription": True, "description": description}}},
             "position": pos(x, 3, 3, 3)}
 
 
-def table(name, ds, title, columns, x, y, w, h):
+def table(name, ds, title, columns, x, y, w, h, description=None):
     return {"widget": {"name": name, "queries": q(ds, [c[0] for c in columns]),
                        "spec": {"version": 2, "widgetType": "table",
                                 "encodings": {"columns": [{"fieldName": c, "displayName": d, **({"format": f} if f else {})}
                                                           for c, d, f in columns]},
-                                "frame": {"showTitle": True, "title": title}}},
+                                "frame": {"showTitle": True, "title": title,
+                                          **({"showDescription": True, "description": description}
+                                             if description else {})}}},
             "position": pos(x, y, w, h)}
 
 
-STATUS = "contains / varies / may_contain block a bowl; unknown means no ingredient list was found"
+STATUS = ("A candy is excluded from a bowl when its status is contains, varies or may_contain. "
+          "Unknown means no matched product had an ingredient list.")
+
+BAR_COLORS = [{"value": "1 No restriction", "color": GREY}] + [
+    {"value": v, "color": ORANGE} for v in
+    ["2 Peanut-free", "3 Nut-free", "4 Milk-free", "5 Gluten-free", "6 Free of all six"]]
 
 LAYOUT = [
-    text("header", ["# CandyOps: which Halloween candy can every kid eat?\n", "\n",
-                    "Popularity comes from 269,000 head-to-head votes (FiveThirtyEight). Allergens come from "
-                    "356,001 crowdsourced Open Food Facts products, cleaned and matched with dbt. Each bowl is the "
-                    "10 most popular candies whose labels list none of the restricted allergens."], 0, 0, 12, 3),
-    counter("kpi-products", "Products scanned", "products_scanned", CNT, 0),
-    counter("kpi-duplicates", "Duplicate barcodes dropped", "duplicates_dropped", {"type": "number-plain"}, 3),
-    counter("kpi-evidence", "Candies with allergen evidence", "candies_with_evidence", {"type": "number-plain"}, 6,
+    text("title", ["# CandyOps: Allergy-Safe Halloween Candy"], 0, 0, 12, 1),
+    text("subtitle", ["Popularity comes from 269,000 head-to-head votes in FiveThirtyEight's Candy Power Ranking. "
+                      "Allergen status comes from 356,001 Open Food Facts products, cleaned and matched with dbt. "
+                      "Each bowl contains the 10 most popular candies whose labels list none of the restricted "
+                      "allergens."], 0, 1, 12, 2),
+    counter("kpi-products", "Products analyzed", "products_scanned", CNT, 0,
+            "Open Food Facts records loaded and cleaned"),
+    counter("kpi-evidence", "Candies with allergen evidence", "candies_with_evidence", {"type": "number-plain"}, 3,
+            "At least two matched products with ingredients",
             ("{{ @formatted }} of {{ ranked_candies }}", "ranked_candies")),
-    counter("kpi-peanut", "Peanut-free bowl keeps", "peanut_free_kept", PCT, 9),
+    counter("kpi-peanut", "Peanut-free bowl", "peanut_free_kept", PCT, 6,
+            "Share of the unrestricted bowl's popularity retained"),
+    counter("kpi-all-six", "Free of all six allergens", "all_six_kept", PCT, 9,
+            "Peanut, tree nut, milk, gluten, soy and egg"),
     {"widget": {"name": "kept-by-restriction", "queries": q("ds_bowls", ["restriction_label", "popularity_kept"]),
                 "spec": {"version": 3, "widgetType": "bar",
                          "encodings": {"x": {"fieldName": "restriction_label",
                                              "scale": {"type": "categorical", "sort": {"by": "alphabetical"}},
                                              "displayName": "Restriction"},
                                        "y": {"fieldName": "popularity_kept", "scale": {"type": "quantitative"},
-                                             "displayName": "Popularity kept", "format": PCT},
+                                             "displayName": "Popularity retained", "format": PCT},
+                                       "color": {"fieldName": "restriction_label",
+                                                 "scale": {"type": "categorical", "mappings": BAR_COLORS},
+                                                 "displayName": "Restriction", "legend": {"hide": True}},
                                        "label": {"show": True}},
-                         "frame": {"showTitle": True, "title": "How much of the best bowl's popularity each restriction keeps"}}},
+                         "frame": {"showTitle": True, "title": "Popularity retained by each restriction",
+                                   "showDescription": True,
+                                   "description": "Average win rate of each bowl compared with the unrestricted bowl"}}},
      "position": pos(0, 6, 6, 6)},
-    table("bowls", "ds_bowls", "The bowls", [("restriction_label", "Restriction", None),
-                                             ("candies_allowed", "Candies allowed", None),
-                                             ("popularity_kept", "Popularity kept", PCT),
-                                             ("bowl", "Top 10, most popular first", None)], 6, 6, 6, 6),
-    table("candies", "ds_candies", f"Every ranked candy ({STATUS})",
-          [("popularity_rank", "Rank", None), ("candy", "Candy", None), ("win_rate", "Wins", PCT),
+    table("bowls", "ds_bowls", "Recommended bowls", [("restriction_label", "Restriction", None),
+                                                     ("candies_allowed", "Eligible candies", None),
+                                                     ("popularity_kept", "Popularity retained", PCT),
+                                                     ("bowl", "Top 10, most popular first", None)], 6, 6, 6, 6),
+    table("candies", "ds_candies", "Allergen status of every ranked candy",
+          [("popularity_rank", "Rank", None), ("candy", "Candy", None), ("win_rate", "Win rate", PCT),
            ("n_products", "Products matched", None), ("n_evidence", "With ingredients", None),
-           ("evidence_scope", "Evidence from", None), ("peanut", "Peanut", None), ("tree_nut", "Tree nut", None),
+           ("evidence_scope", "Evidence source", None), ("peanut", "Peanut", None), ("tree_nut", "Tree nut", None),
            ("milk", "Milk", None), ("gluten", "Gluten", None), ("soy", "Soy", None), ("egg", "Egg", None),
-           ("sugars_100g", "Sugar g/100g", None)], 0, 12, 12, 9),
-    table("methods", "ds_methods", "Matching on the name alone vs curated rules",
+           ("sugars_100g", "Sugar (g/100 g)", None)], 0, 12, 12, 9, STATUS),
+    table("methods", "ds_methods", "Name matching compared with curated rules",
           [("method_label", "Method", None), ("candies_matched", "Candies matched", None),
            ("products_matched", "Products matched", None), ("us_products_matched", "US products", None),
-           ("non_candy_products", "Not candy (creamer, ice cream...)", None)], 0, 21, 6, 4),
-    table("quality", "ds_quality", "What cleaning found", [("metric", "Check", None), ("value", "Rows", CNT)],
+           ("non_candy_products", "Non-candy matches", None)], 0, 21, 6, 6,
+          "Matching on the name alone pulls in coffee creamer, ice cream and cereal"),
+    table("quality", "ds_quality", "Data-cleaning results", [("metric", "Check", None), ("value", "Rows", CNT)],
           6, 21, 6, 6),
-    text("footer", ["Data: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots "
-                    "from Kaggle. Allergen flags are parsed from crowdsourced ingredient lists, are not medical "
-                    "advice, and can be out of date: always read the package label. Each bowl and matching method "
-                    "is also logged to MLflow (experiment candyops-candy-bowls)."], 0, 27, 12, 2),
+    text("footer", ["Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 "
+                    "snapshots from Kaggle. Allergen status is parsed from crowdsourced ingredient lists, is not "
+                    "medical advice, and may be out of date. Always check the package label. Each bowl and matching "
+                    "method is logged to the MLflow experiment candyops-candy-bowls."], 0, 27, 12, 2),
 ]
 
 DASH = {"datasets": DATASETS,
@@ -164,11 +184,13 @@ DASH = {"datasets": DATASETS,
         "uiSettings": {"theme": {
             "canvasBackgroundColor": {"light": "#FBF7F2", "dark": "#14101A"},
             "widgetBackgroundColor": {"light": "#FFFFFF", "dark": "#1E1726"},
-            "widgetBorderColor": {"light": "#F1E6DA", "dark": "#2A2133"},
+            "widgetBorderColor": {"light": "#FFFFFF", "dark": "#1E1726"},
             "fontColor": {"light": "#1F1A24", "dark": "#F3EDE4"},
             "selectionColor": {"light": ORANGE, "dark": AMBER},
             "visualizationColors": [ORANGE, PURPLE, GREY, AMBER, LAVENDER, "#16A34A"],
-            "widgetHeaderAlignment": "LEFT"}}}
+            "widgetHeaderAlignment": "LEFT",
+            "widgetCornerRadius": 12,
+            "fontFamily": "Inter"}}}
 
 if __name__ == "__main__":
     OUT.write_text(json.dumps(DASH, indent=2) + "\n")

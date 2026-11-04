@@ -17,7 +17,7 @@ variables:
 resources:
   dashboards:
     candyops_dashboard:
-      display_name: CandyOps - Halloween candy and food allergies
+      display_name: CandyOps Allergy-Safe Halloween Candy
       file_path: ./dashboards/candyops.lvdash.json
       warehouse_id: ${var.warehouse_id}
       dataset_catalog: ${var.catalog}
