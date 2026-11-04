@@ -77,7 +77,7 @@ def main() -> int:
     print(f"delta tables: {tables}; summary rows after rerun: {n}; failed checks: {len(fails)}; "
           f"matches pure-Python run: {same}")
     spark.stop()
-    return 0 if same and not fails and n == 5 and not empty else 1
+    return 0 if same and not fails and n == len(local["gold_scenario_summary"]) and not empty else 1
 
 
 if __name__ == "__main__":
