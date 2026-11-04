@@ -72,7 +72,7 @@ jobs:
       - name: dbt build from the deployed bronze tables
         if: steps.ws.outputs.bronze == 'true'
         working-directory: dbt
-        run: uv run dbt build --profiles-dir profiles --vars '{bronze_schema: candyops}'
+        run: "uv run dbt build --profiles-dir profiles --vars '{bronze_schema: candyops}'"
       - name: Skip until the first deploy has loaded bronze
         if: steps.ws.outputs.bronze != 'true'
         run: echo "::notice::workspace.candyops.bronze_off_products does not exist yet; dbt build skipped"
