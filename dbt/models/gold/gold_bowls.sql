@@ -8,7 +8,7 @@ with restriction_names as (
 blocked as (
     select distinct r.restriction, a.candy
     from {{ ref('restrictions') }} as r
-    inner join {{ ref('gold_candy_allergens') }} as a on a.allergen = r.allergen
+    inner join {{ ref('gold_candy_allergens') }} as a on a.allergen = r.allergen and a.vintage = 'snapshot_2017'
     where a.status <> 'not_listed' or a.n_evidence < {{ var('min_evidence') }}
     union
     -- second source: FiveThirtyEight tags peanut/almond candies; labels can miss them (Butterfinger's only

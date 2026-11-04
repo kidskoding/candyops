@@ -4,7 +4,7 @@ models:
   - name: gold_candy_allergens
     description: Allergen status per candy, from matched products with an ingredient list
     tests:
-      - unique_combination: {arguments: {columns: [candy, allergen]}}
+      - unique_combination: {arguments: {columns: [vintage, candy, allergen]}}
     columns:
       - name: status
         tests:
@@ -30,3 +30,11 @@ models:
     description: Name-only matching versus the curated rules
   - name: gold_data_quality
     description: Row counts and gaps found while cleaning
+  - name: gold_label_changes
+    description: Allergen status per candy in the 2017 snapshot versus the products edited since the feed started
+    tests:
+      - unique_combination: {arguments: {columns: [candy, allergen]}}
+    columns:
+      - name: comparison
+        tests:
+          - accepted_values: {arguments: {values: [unchanged, changed, newly_covered, not_enough_current_data]}}

@@ -7,6 +7,7 @@ with matches as (
         median(sugars_100g) as sugars_100g,
         median(serving_g) as serving_g
     from {{ ref('silver_candy_matches') }}
+    where vintage = 'snapshot_2017'
     group by candy
 ),
 
@@ -19,6 +20,7 @@ allergens as (
         max(case when allergen = '{{ a }}' then status end) as {{ a }}{{ ',' if not loop.last }}
         {% endfor %}
     from {{ ref('gold_candy_allergens') }}
+    where vintage = 'snapshot_2017'
     group by candy
 )
 

@@ -15,6 +15,7 @@ naive as (
 curated as (
     select candy, code, is_us, false as not_candy
     from {{ ref('silver_candy_matches') }}
+    where vintage = 'snapshot_2017'
 )
 
 {% for method in ['naive', 'curated'] %}
