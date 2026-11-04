@@ -12,6 +12,10 @@
 # MAGIC | S2_OVERTIME | Up to 4 h overtime per line-day at Northfield where the line is running |
 # MAGIC | S3_TRANSFER | Southgate's idle standard hours make compatible SKUs, trucked to Northfield (1-day lead time) |
 # MAGIC | S3B_TRANSFER_EARLY_WRAPPERS | Sensitivity: S3 with Southgate's Halloween film delivered Oct 27 instead of Oct 30 |
+# MAGIC | S4_OVERTIME_AND_TRANSFER | Overtime first, then Southgate's idle hours for what is still short |
+# MAGIC
+# MAGIC Sweeps (`gold_sweep`) rerun the options with one input changed: the film delivery date (Oct 27–30) and
+# MAGIC the overtime cap (0–8 h per line-day). Every run is logged to MLflow.
 # MAGIC
 # MAGIC Every scenario restarts from the **same** state at the decision point (Oct 25–26 actuals replayed once).
 # MAGIC The simulation is plain Python (`src/candyops/simulation.py`), deterministic and rule-based: no ML, no solver.
@@ -89,6 +93,40 @@ display(spark.sql(f"""
   FROM {fqn(CATALOG, SCHEMA, 'gold_recovery_capacity')}
   WHERE spare_hours > 0 OR status LIKE 'unavailable%'
   ORDER BY scenario_id, `date`, line_id"""))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Sweeps: how late can the film arrive, and how much overtime is worth it?
+
+# COMMAND ----------
+
+display(spark.sql(f"""
+  SELECT sweep_name, option, param_value, bags_ready_on_time,
+         ROUND(on_time_ready_rate_bags * 100, 1) AS on_time_ready_pct,
+         incremental_cost_usd, cost_per_incremental_ready_bag_usd, primary_constraint
+  FROM {fqn(CATALOG, SCHEMA, 'gold_sweep')}
+  ORDER BY sweep_name, option, days_or_hours"""))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Track every scenario and sweep point in MLflow
+# MAGIC One parent run per pipeline run, one nested run per scenario, under `/Users/<you>/candyops-scenarios`.
+
+# COMMAND ----------
+
+from datetime import datetime, timezone
+
+import mlflow
+
+from candyops.tracking import log_runs, run_records
+
+user = spark.sql("SELECT current_user()").first()[0]
+experiment = f"/Users/{user}/candyops-scenarios"
+records = run_records(gold)
+parent_id = log_runs(mlflow, records, experiment, f"candyops-pipeline {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC")
+print(f"Logged {len(records)} runs to MLflow experiment {experiment} (parent run {parent_id})")
 
 # COMMAND ----------
 
