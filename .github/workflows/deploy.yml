@@ -1,6 +1,5 @@
 name: Deploy to Databricks
 
-# Skipped until the repo has a DATABRICKS_HOST variable and a DATABRICKS_TOKEN secret (README: CI/CD).
 on:
   workflow_run:
     workflows: [CI]
