@@ -19,7 +19,7 @@ Haribo Gold Bears,(?=.*\bharibo\b)(?=.*\bgold ?(bears|baren)\b),
 Haribo Happy Cola,(?=.*\bharibo\b)(?=.*\bhappy cola\b),
 Haribo Sour Bears,(?=.*\bharibo\b)(?=.*\bsour\b)(?=.*\bbears?\b),
 Haribo Twin Snakes,(?=.*\bharibo\b)(?=.*\btwin snakes\b),
-Hershey's Kisses,(?=.*\bhersheys?\b)(?=.*\bkisses\b),\bcookies?\b
+Hershey's Kisses,(?=.*\bhersheys?\b)(?=.*\bkisses\b),\b(cookies?|almonds?|cherry|cordial|caramel|filled|cereza|mint|pumpkin|peanut butter|hugs)\b
 Hershey's Krackel,\bkrackel\b,
 Hershey's Milk Chocolate,(?=.*\bhersheys?\b)(?=.*\bmilk chocolate\b),\b(kisses|almonds?|nuggets|miniatures|cookies?|caramel|pretzel|drops|syrup|cocoa)\b
 Hershey's Special Dark,\bspecial dark\b,
@@ -60,7 +60,7 @@ Sixlets,\bsixlets\b,
 Skittles original,\bskittles\b,\b(wild ?berry|sour|tropical|smoothie|desserts?|darkside|orchards?|sweet heat|crazy cores|blenders)\b
 Skittles wildberry,(?=.*\bskittles\b)(?=.*\bwild ?berry\b),
 Nestle Smarties,(?=.*\bsmarties\b)(?=.*\b(nestle|chocolate)\b),
-Smarties candy,\bsmarties\b,\b(nestle|chocolate)\b
+Smarties candy,(?=.*\bsmarties\b)(?=.*\b(candy|rolls?|lollipops?)\b),\b(nestle|chocolate|ritter|white|eggs?)\b
 Snickers,\bsnickers\b,\b(crisper|almonds?|peanut butter|dark|protein|hazelnut|salted|white|xtreme|rockin)\b
 Snickers Crisper,\bsnickers crisper\b,
 Sour Patch Kids,\bsour patch kids\b,

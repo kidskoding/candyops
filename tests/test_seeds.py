@@ -56,6 +56,13 @@ def test_rules_link_real_product_names(text, expected, aliases, rules):
     # derived products once made Butterfinger look peanut-free
     "crispy marshmallow squares made with nestle butterfinger || ",
     "gourmet butterfinger caramel apple || ",
+    # mixed packs carry other candies' allergens (Reese's peanuts once counted against Kit Kat)
+    "reeses & kit kat halloween candy assortment || hersheys",
+    "hersheys miniatures variety pack || hersheys",
+    # flavour variants and lookalike brands once changed current statuses
+    "milk chocolate kisses with almonds || hersheys",
+    "smarties white || smarties",
+    "ritter sport smarties || ritter sport",
 ])
 def test_rules_reject_lookalikes(text, aliases, rules):
     assert matched_candies(text, aliases, rules) == set()
