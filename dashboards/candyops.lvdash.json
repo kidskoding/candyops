@@ -10,7 +10,9 @@
         "  MAX(CASE WHEN metric = 'candies_with_enough_evidence' THEN value END) AS candies_with_evidence,\n",
         "  MAX(CASE WHEN metric = 'ranked_candies' THEN value END) AS ranked_candies,\n",
         "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept,\n",
-        "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'free_of_all_six') AS all_six_kept\n",
+        "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'free_of_all_six') AS all_six_kept,\n",
+        "  (SELECT COUNT(DISTINCT candy) FROM gold_label_changes WHERE comparison = 'changed') AS candies_changed,\n",
+        "  (SELECT COUNT(DISTINCT candy) FROM gold_label_changes WHERE comparison IN ('changed', 'unchanged')) AS candies_compared\n",
         "FROM gold_data_quality"
       ]
     },
@@ -97,6 +99,77 @@
         "FROM gold_label_changes\n",
         "WHERE comparison IN ('changed', 'newly_covered')\n",
         "ORDER BY comparison, candy, allergen"
+      ]
+    },
+    {
+      "name": "ds_bowl_mix",
+      "displayName": "Chocolate share of each bowl",
+      "queryLines": [
+        "SELECT\n",
+        "  CASE b.restriction\n",
+        "    WHEN 'no_restriction' THEN '1 No restriction'\n",
+        "    WHEN 'peanut_free' THEN '2 Peanut-free'\n",
+        "    WHEN 'nut_free' THEN '3 Nut-free'\n",
+        "    WHEN 'milk_free' THEN '4 Milk-free'\n",
+        "    WHEN 'gluten_free' THEN '5 Gluten-free'\n",
+        "    WHEN 'free_of_all_six' THEN '6 Free of all six'\n",
+        "  END AS restriction_label,\n",
+        "  CASE WHEN p.chocolate THEN 'Chocolate' ELSE 'Non-chocolate' END AS candy_type,\n",
+        "  COUNT(*) AS candies\n",
+        "FROM gold_bowls AS b\n",
+        "INNER JOIN gold_candy_profile AS p ON p.candy = b.candy\n",
+        "GROUP BY 1, 2\n",
+        "ORDER BY 1, 2"
+      ]
+    },
+    {
+      "name": "ds_heatmap",
+      "displayName": "Allergen status of the 20 most popular candies",
+      "queryLines": [
+        "SELECT\n",
+        "  CONCAT(LPAD(CAST(popularity_rank AS STRING), 2, '0'), '  ', candy) AS candy_label,\n",
+        "  allergen,\n",
+        "  CASE status WHEN 'contains' THEN 3 WHEN 'varies' THEN 2 WHEN 'may_contain' THEN 1 WHEN 'not_listed' THEN 0 END\n",
+        "    AS severity\n",
+        "FROM (SELECT popularity_rank, candy, peanut, tree_nut, milk, gluten, soy, egg\n",
+        "      FROM gold_candy_profile WHERE popularity_rank <= 20)\n",
+        "UNPIVOT (status FOR allergen IN (peanut AS `Peanut`, tree_nut AS `Tree nut`, milk AS `Milk`, gluten AS `Gluten`,\n",
+        "                                 soy AS `Soy`, egg AS `Egg`))\n",
+        "ORDER BY candy_label"
+      ]
+    },
+    {
+      "name": "ds_change_outcomes",
+      "displayName": "2017 versus now, per candy",
+      "queryLines": [
+        "SELECT outcome, COUNT(*) AS candies\n",
+        "FROM (\n",
+        "  SELECT\n",
+        "    candy,\n",
+        "    CASE\n",
+        "      WHEN MAX(CASE WHEN comparison = 'changed' THEN 1 ELSE 0 END) = 1 THEN 'Changed'\n",
+        "      WHEN MAX(CASE WHEN comparison = 'unchanged' THEN 1 ELSE 0 END) = 1 THEN 'Unchanged'\n",
+        "      WHEN MAX(CASE WHEN comparison = 'newly_covered' THEN 1 ELSE 0 END) = 1 THEN 'Newly covered'\n",
+        "      ELSE 'Not enough current data'\n",
+        "    END AS outcome\n",
+        "  FROM gold_label_changes\n",
+        "  GROUP BY candy\n",
+        ")\n",
+        "GROUP BY outcome"
+      ]
+    },
+    {
+      "name": "ds_changes_by_allergen",
+      "displayName": "Changed statuses by allergen",
+      "queryLines": [
+        "SELECT\n",
+        "  CASE allergen WHEN 'peanut' THEN 'Peanut' WHEN 'tree_nut' THEN 'Tree nut' WHEN 'milk' THEN 'Milk'\n",
+        "    WHEN 'gluten' THEN 'Gluten' WHEN 'soy' THEN 'Soy' WHEN 'egg' THEN 'Egg' END AS allergen_label,\n",
+        "  COUNT(*) AS changes\n",
+        "FROM gold_label_changes\n",
+        "WHERE comparison = 'changed'\n",
+        "GROUP BY 1\n",
+        "ORDER BY changes DESC"
       ]
     }
   ],
@@ -288,7 +361,7 @@
         },
         {
           "widget": {
-            "name": "kpi-all-six",
+            "name": "kpi-changed",
             "queries": [
               {
                 "name": "main_query",
@@ -296,8 +369,12 @@
                   "datasetName": "ds_kpi",
                   "fields": [
                     {
-                      "name": "all_six_kept",
-                      "expression": "`all_six_kept`"
+                      "name": "candies_changed",
+                      "expression": "`candies_changed`"
+                    },
+                    {
+                      "name": "candies_compared",
+                      "expression": "`candies_compared`"
                     }
                   ],
                   "disaggregated": true
@@ -309,22 +386,19 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "all_six_kept",
-                  "displayName": "Free of all six allergens",
+                  "fieldName": "candies_changed",
+                  "displayName": "Allergen labels changed since 2017",
                   "format": {
-                    "type": "number-percent",
-                    "decimalPlaces": {
-                      "type": "max",
-                      "places": 1
-                    }
-                  }
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{ @formatted }} of {{ candies_compared }}"
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Free of all six allergens",
+                "title": "Allergen labels changed since 2017",
                 "showDescription": true,
-                "description": "Peanut, tree nut, milk, gluten, soy and egg"
+                "description": "Candies with current data whose status changed"
               }
             }
           },
@@ -363,20 +437,28 @@
               "encodings": {
                 "x": {
                   "fieldName": "restriction_label",
+                  "displayName": "Restriction",
                   "scale": {
                     "type": "categorical",
                     "sort": {
-                      "by": "alphabetical"
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "1 No restriction",
+                        "2 Peanut-free",
+                        "3 Nut-free",
+                        "4 Milk-free",
+                        "5 Gluten-free",
+                        "6 Free of all six"
+                      ]
                     }
-                  },
-                  "displayName": "Restriction"
+                  }
                 },
                 "y": {
                   "fieldName": "popularity_kept",
+                  "displayName": "Popularity retained",
                   "scale": {
                     "type": "quantitative"
                   },
-                  "displayName": "Popularity retained",
                   "format": {
                     "type": "number-percent",
                     "decimalPlaces": {
@@ -387,6 +469,10 @@
                 },
                 "color": {
                   "fieldName": "restriction_label",
+                  "displayName": "Restriction",
+                  "legend": {
+                    "hide": true
+                  },
                   "scale": {
                     "type": "categorical",
                     "mappings": [
@@ -415,10 +501,6 @@
                         "color": "#F97316"
                       }
                     ]
-                  },
-                  "displayName": "Restriction",
-                  "legend": {
-                    "hide": true
                   }
                 },
                 "label": {
@@ -437,6 +519,665 @@
             "x": 0,
             "y": 6,
             "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chocolate-mix",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_bowl_mix",
+                  "fields": [
+                    {
+                      "name": "restriction_label",
+                      "expression": "`restriction_label`"
+                    },
+                    {
+                      "name": "candies",
+                      "expression": "`candies`"
+                    },
+                    {
+                      "name": "candy_type",
+                      "expression": "`candy_type`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "restriction_label",
+                  "displayName": "Restriction",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "1 No restriction",
+                        "2 Peanut-free",
+                        "3 Nut-free",
+                        "4 Milk-free",
+                        "5 Gluten-free",
+                        "6 Free of all six"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "candies",
+                  "displayName": "Candies in the bowl",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "candy_type",
+                  "displayName": "Candy type",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Chocolate",
+                        "color": "#9A5B2E"
+                      },
+                      {
+                        "value": "Non-chocolate",
+                        "color": "#F97316"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Chocolate disappears as restrictions are added",
+                "showDescription": true,
+                "description": "Chocolate and non-chocolate candies in each 10-candy bowl"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "sugar-by-bowl",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_bowls",
+                  "fields": [
+                    {
+                      "name": "restriction_label",
+                      "expression": "`restriction_label`"
+                    },
+                    {
+                      "name": "median_sugars_100g",
+                      "expression": "`median_sugars_100g`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "restriction_label",
+                  "displayName": "Restriction",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "1 No restriction",
+                        "2 Peanut-free",
+                        "3 Nut-free",
+                        "4 Milk-free",
+                        "5 Gluten-free",
+                        "6 Free of all six"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "median_sugars_100g",
+                  "displayName": "Median sugar (g per 100 g)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "restriction_label",
+                  "displayName": "Restriction",
+                  "legend": {
+                    "hide": true
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "1 No restriction",
+                        "color": "#8B8B99"
+                      },
+                      {
+                        "value": "2 Peanut-free",
+                        "color": "#C4B5FD"
+                      },
+                      {
+                        "value": "3 Nut-free",
+                        "color": "#C4B5FD"
+                      },
+                      {
+                        "value": "4 Milk-free",
+                        "color": "#C4B5FD"
+                      },
+                      {
+                        "value": "5 Gluten-free",
+                        "color": "#C4B5FD"
+                      },
+                      {
+                        "value": "6 Free of all six",
+                        "color": "#C4B5FD"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Allergy-safe bowls contain more sugar",
+                "showDescription": true,
+                "description": "Median sugar per 100 g in each bowl. Safe bowls rely on fruit candy instead of chocolate."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "matching-methods",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_methods",
+                  "fields": [
+                    {
+                      "name": "method_label",
+                      "expression": "`method_label`"
+                    },
+                    {
+                      "name": "candies_matched",
+                      "expression": "`candies_matched`"
+                    },
+                    {
+                      "name": "non_candy_products",
+                      "expression": "`non_candy_products`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "method_label",
+                  "displayName": "Method",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "candies_matched",
+                      "displayName": "Candies matched"
+                    },
+                    {
+                      "fieldName": "non_candy_products",
+                      "displayName": "Non-candy products matched"
+                    }
+                  ]
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Curated rules remove every false match",
+                "showDescription": true,
+                "description": "Matching on the name alone pulls in coffee creamer, ice cream and cereal"
+              },
+              "mark": {
+                "layout": "group"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 12,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "allergen-heatmap",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_heatmap",
+                  "fields": [
+                    {
+                      "name": "allergen",
+                      "expression": "`allergen`"
+                    },
+                    {
+                      "name": "candy_label",
+                      "expression": "`candy_label`"
+                    },
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "heatmap",
+              "encodings": {
+                "x": {
+                  "fieldName": "allergen",
+                  "displayName": "Allergen",
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Peanut",
+                        "Tree nut",
+                        "Milk",
+                        "Gluten",
+                        "Soy",
+                        "Egg"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "candy_label",
+                  "displayName": "Candy",
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "alphabetical"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "severity",
+                  "displayName": "Status",
+                  "scale": {
+                    "type": "quantitative",
+                    "colorRamp": {
+                      "mode": "custom-sequential",
+                      "colors": {
+                        "start": "#2A2133",
+                        "end": "#F97316"
+                      }
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Allergen status of the 20 most popular candies",
+                "showDescription": true,
+                "description": "0 not listed, 1 may contain, 2 varies by product, 3 contains. Blank cells have no matched ingredient list."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "change-outcomes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_change_outcomes",
+                  "fields": [
+                    {
+                      "name": "outcome",
+                      "expression": "`outcome`"
+                    },
+                    {
+                      "name": "candies",
+                      "expression": "`candies`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "outcome",
+                  "displayName": "Outcome",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Changed",
+                        "Unchanged",
+                        "Newly covered",
+                        "Not enough current data"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "candies",
+                  "displayName": "Candies",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "outcome",
+                  "displayName": "Outcome",
+                  "legend": {
+                    "hide": true
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Changed",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Unchanged",
+                        "color": "#7C3AED"
+                      },
+                      {
+                        "value": "Newly covered",
+                        "color": "#FDBA74"
+                      },
+                      {
+                        "value": "Not enough current data",
+                        "color": "#8B8B99"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Is the 2017 answer still true?",
+                "showDescription": true,
+                "description": "Each candy's 2017 allergen status compared with products edited since the daily change feed started"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 27,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "changes-by-allergen",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_changes_by_allergen",
+                  "fields": [
+                    {
+                      "name": "allergen_label",
+                      "expression": "`allergen_label`"
+                    },
+                    {
+                      "name": "changes",
+                      "expression": "`changes`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "allergen_label",
+                  "displayName": "Allergen",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Peanut",
+                        "Tree nut",
+                        "Egg",
+                        "Soy",
+                        "Gluten",
+                        "Milk"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "changes",
+                  "displayName": "Changed statuses",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "allergen_label",
+                  "displayName": "Allergen",
+                  "legend": {
+                    "hide": true
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Peanut",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Tree nut",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Milk",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Gluten",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Soy",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Egg",
+                        "color": "#F97316"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Which allergen statuses changed",
+                "showDescription": true,
+                "description": "Candy and allergen pairs whose status differs between 2017 and current labels"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 27,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "changes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_changes",
+                  "fields": [
+                    {
+                      "name": "candy",
+                      "expression": "`candy`"
+                    },
+                    {
+                      "name": "allergen",
+                      "expression": "`allergen`"
+                    },
+                    {
+                      "name": "status_2017",
+                      "expression": "`status_2017`"
+                    },
+                    {
+                      "name": "status_now",
+                      "expression": "`status_now`"
+                    },
+                    {
+                      "name": "evidence_2017",
+                      "expression": "`evidence_2017`"
+                    },
+                    {
+                      "name": "evidence_now",
+                      "expression": "`evidence_now`"
+                    },
+                    {
+                      "name": "comparison_label",
+                      "expression": "`comparison_label`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "candy",
+                    "displayName": "Candy"
+                  },
+                  {
+                    "fieldName": "allergen",
+                    "displayName": "Allergen"
+                  },
+                  {
+                    "fieldName": "status_2017",
+                    "displayName": "2017 status"
+                  },
+                  {
+                    "fieldName": "status_now",
+                    "displayName": "Current status"
+                  },
+                  {
+                    "fieldName": "evidence_2017",
+                    "displayName": "2017 products"
+                  },
+                  {
+                    "fieldName": "evidence_now",
+                    "displayName": "Current products"
+                  },
+                  {
+                    "fieldName": "comparison_label",
+                    "displayName": "Comparison"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Allergen statuses that changed since 2017",
+                "showDescription": true,
+                "description": "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two current products with ingredients are compared."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 33,
+            "width": 12,
             "height": 6
           }
         },
@@ -507,10 +1248,10 @@
             }
           },
           "position": {
-            "x": 6,
-            "y": 6,
-            "width": 6,
-            "height": 6
+            "x": 0,
+            "y": 39,
+            "width": 12,
+            "height": 5
           }
         },
         {
@@ -655,85 +1396,9 @@
           },
           "position": {
             "x": 0,
-            "y": 12,
+            "y": 44,
             "width": 12,
-            "height": 9
-          }
-        },
-        {
-          "widget": {
-            "name": "methods",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "ds_methods",
-                  "fields": [
-                    {
-                      "name": "method_label",
-                      "expression": "`method_label`"
-                    },
-                    {
-                      "name": "candies_matched",
-                      "expression": "`candies_matched`"
-                    },
-                    {
-                      "name": "products_matched",
-                      "expression": "`products_matched`"
-                    },
-                    {
-                      "name": "us_products_matched",
-                      "expression": "`us_products_matched`"
-                    },
-                    {
-                      "name": "non_candy_products",
-                      "expression": "`non_candy_products`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "widgetType": "table",
-              "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "method_label",
-                    "displayName": "Method"
-                  },
-                  {
-                    "fieldName": "candies_matched",
-                    "displayName": "Candies matched"
-                  },
-                  {
-                    "fieldName": "products_matched",
-                    "displayName": "Products matched"
-                  },
-                  {
-                    "fieldName": "us_products_matched",
-                    "displayName": "US products"
-                  },
-                  {
-                    "fieldName": "non_candy_products",
-                    "displayName": "Non-candy matches"
-                  }
-                ]
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Name matching compared with curated rules",
-                "showDescription": true,
-                "description": "Matching on the name alone pulls in coffee creamer, ice cream and cereal"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 21,
-            "width": 6,
-            "height": 6
+            "height": 8
           }
         },
         {
@@ -788,102 +1453,10 @@
             }
           },
           "position": {
-            "x": 6,
-            "y": 21,
-            "width": 6,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "changes",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "ds_changes",
-                  "fields": [
-                    {
-                      "name": "candy",
-                      "expression": "`candy`"
-                    },
-                    {
-                      "name": "allergen",
-                      "expression": "`allergen`"
-                    },
-                    {
-                      "name": "status_2017",
-                      "expression": "`status_2017`"
-                    },
-                    {
-                      "name": "status_now",
-                      "expression": "`status_now`"
-                    },
-                    {
-                      "name": "evidence_2017",
-                      "expression": "`evidence_2017`"
-                    },
-                    {
-                      "name": "evidence_now",
-                      "expression": "`evidence_now`"
-                    },
-                    {
-                      "name": "comparison_label",
-                      "expression": "`comparison_label`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "widgetType": "table",
-              "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "candy",
-                    "displayName": "Candy"
-                  },
-                  {
-                    "fieldName": "allergen",
-                    "displayName": "Allergen"
-                  },
-                  {
-                    "fieldName": "status_2017",
-                    "displayName": "2017 status"
-                  },
-                  {
-                    "fieldName": "status_now",
-                    "displayName": "Current status"
-                  },
-                  {
-                    "fieldName": "evidence_2017",
-                    "displayName": "2017 products"
-                  },
-                  {
-                    "fieldName": "evidence_now",
-                    "displayName": "Current products"
-                  },
-                  {
-                    "fieldName": "comparison_label",
-                    "displayName": "Comparison"
-                  }
-                ]
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Is the 2017 answer still true? Labels edited since the daily feed started",
-                "showDescription": true,
-                "description": "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two current products with ingredients are compared."
-              }
-            }
-          },
-          "position": {
             "x": 0,
-            "y": 27,
+            "y": 52,
             "width": 12,
-            "height": 7
+            "height": 5
           }
         },
         {
@@ -897,7 +1470,7 @@
           },
           "position": {
             "x": 0,
-            "y": 34,
+            "y": 57,
             "width": 12,
             "height": 2
           }

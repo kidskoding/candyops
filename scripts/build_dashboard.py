@@ -31,7 +31,9 @@ SELECT
   MAX(CASE WHEN metric = 'candies_with_enough_evidence' THEN value END) AS candies_with_evidence,
   MAX(CASE WHEN metric = 'ranked_candies' THEN value END) AS ranked_candies,
   (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept,
-  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'free_of_all_six') AS all_six_kept
+  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'free_of_all_six') AS all_six_kept,
+  (SELECT COUNT(DISTINCT candy) FROM gold_label_changes WHERE comparison = 'changed') AS candies_changed,
+  (SELECT COUNT(DISTINCT candy) FROM gold_label_changes WHERE comparison IN ('changed', 'unchanged')) AS candies_compared
 FROM gold_data_quality""")},
     {"name": "ds_bowls", "displayName": "Bowls by restriction", "queryLines": ql(f"""
 SELECT
@@ -86,6 +88,50 @@ SELECT
 FROM gold_label_changes
 WHERE comparison IN ('changed', 'newly_covered')
 ORDER BY comparison, candy, allergen""")},
+    {"name": "ds_bowl_mix", "displayName": "Chocolate share of each bowl", "queryLines": ql(f"""
+SELECT
+  {LABEL.replace("restriction", "b.restriction", 1)} AS restriction_label,
+  CASE WHEN p.chocolate THEN 'Chocolate' ELSE 'Non-chocolate' END AS candy_type,
+  COUNT(*) AS candies
+FROM gold_bowls AS b
+INNER JOIN gold_candy_profile AS p ON p.candy = b.candy
+GROUP BY 1, 2
+ORDER BY 1, 2""")},
+    {"name": "ds_heatmap", "displayName": "Allergen status of the 20 most popular candies", "queryLines": ql("""
+SELECT
+  CONCAT(LPAD(CAST(popularity_rank AS STRING), 2, '0'), '  ', candy) AS candy_label,
+  allergen,
+  CASE status WHEN 'contains' THEN 3 WHEN 'varies' THEN 2 WHEN 'may_contain' THEN 1 WHEN 'not_listed' THEN 0 END
+    AS severity
+FROM (SELECT popularity_rank, candy, peanut, tree_nut, milk, gluten, soy, egg
+      FROM gold_candy_profile WHERE popularity_rank <= 20)
+UNPIVOT (status FOR allergen IN (peanut AS `Peanut`, tree_nut AS `Tree nut`, milk AS `Milk`, gluten AS `Gluten`,
+                                 soy AS `Soy`, egg AS `Egg`))
+ORDER BY candy_label""")},
+    {"name": "ds_change_outcomes", "displayName": "2017 versus now, per candy", "queryLines": ql("""
+SELECT outcome, COUNT(*) AS candies
+FROM (
+  SELECT
+    candy,
+    CASE
+      WHEN MAX(CASE WHEN comparison = 'changed' THEN 1 ELSE 0 END) = 1 THEN 'Changed'
+      WHEN MAX(CASE WHEN comparison = 'unchanged' THEN 1 ELSE 0 END) = 1 THEN 'Unchanged'
+      WHEN MAX(CASE WHEN comparison = 'newly_covered' THEN 1 ELSE 0 END) = 1 THEN 'Newly covered'
+      ELSE 'Not enough current data'
+    END AS outcome
+  FROM gold_label_changes
+  GROUP BY candy
+)
+GROUP BY outcome""")},
+    {"name": "ds_changes_by_allergen", "displayName": "Changed statuses by allergen", "queryLines": ql("""
+SELECT
+  CASE allergen WHEN 'peanut' THEN 'Peanut' WHEN 'tree_nut' THEN 'Tree nut' WHEN 'milk' THEN 'Milk'
+    WHEN 'gluten' THEN 'Gluten' WHEN 'soy' THEN 'Soy' WHEN 'egg' THEN 'Egg' END AS allergen_label,
+  COUNT(*) AS changes
+FROM gold_label_changes
+WHERE comparison = 'changed'
+GROUP BY 1
+ORDER BY changes DESC""")},
 ]
 
 PCT = {"type": "number-percent", "decimalPlaces": {"type": "max", "places": 1}}
@@ -133,9 +179,45 @@ def table(name, ds, title, columns, x, y, w, h, description=None):
 STATUS = ("A candy is excluded from a bowl when its status is contains, varies or may_contain. "
           "Unknown means no matched product had an ingredient list.")
 
-BAR_COLORS = [{"value": "1 No restriction", "color": GREY}] + [
-    {"value": v, "color": ORANGE} for v in
-    ["2 Peanut-free", "3 Nut-free", "4 Milk-free", "5 Gluten-free", "6 Free of all six"]]
+RESTRICTIONS = ["1 No restriction", "2 Peanut-free", "3 Nut-free", "4 Milk-free", "5 Gluten-free",
+                "6 Free of all six"]
+BAR_COLORS = [{"value": RESTRICTIONS[0], "color": GREY}] + [{"value": v, "color": ORANGE} for v in RESTRICTIONS[1:]]
+SUGAR_COLORS = [{"value": RESTRICTIONS[0], "color": GREY}] + [{"value": v, "color": LAVENDER} for v in RESTRICTIONS[1:]]
+OUTCOMES = ["Changed", "Unchanged", "Newly covered", "Not enough current data"]
+NO_LEGEND = {"hide": True}
+
+
+def frame(title, description=None):
+    return {"showTitle": True, "title": title, **({"showDescription": True, "description": description}
+                                                   if description else {})}
+
+
+def bar(name, ds, x, y, title, description, position, color=None, mark=None, horizontal=False):
+    """x and y are (field, display name, extra encoding keys); color is an encoding dict or None."""
+    fields = [x[0]] + ([f[0] for f in y] if isinstance(y, list) else [y[0]]) + ([color["fieldName"]] if color and
+                                                                                color["fieldName"] != x[0] else [])
+    cat = {"fieldName": x[0], "displayName": x[1], "scale": {"type": "categorical", **x[2]}}
+    if isinstance(y, list):
+        val = {"scale": {"type": "quantitative"}, "fields": [{"fieldName": f, "displayName": d} for f, d in y]}
+    else:
+        val = {"fieldName": y[0], "displayName": y[1], "scale": {"type": "quantitative"}, **y[2]}
+    enc = {"y": cat, "x": val} if horizontal else {"x": cat, "y": val}
+    if color:
+        enc["color"] = color
+    enc["label"] = {"show": True}
+    spec = {"version": 3, "widgetType": "bar", "encodings": enc, "frame": frame(title, description)}
+    if mark:
+        spec["mark"] = mark
+    return {"widget": {"name": name, "queries": q(ds, list(dict.fromkeys(fields))), "spec": spec},
+            "position": pos(*position)}
+
+
+def by_restriction(colors):
+    return {"fieldName": "restriction_label", "displayName": "Restriction", "legend": NO_LEGEND,
+            "scale": {"type": "categorical", "mappings": colors}}
+
+
+ORDERED = {"sort": {"by": "custom-order", "orderedValues": RESTRICTIONS}}
 
 LAYOUT = [
     text("title", ["# candyops: Allergy-Safe Halloween Candy"], 0, 0, 12, 1),
@@ -150,50 +232,92 @@ LAYOUT = [
             ("{{ @formatted }} of {{ ranked_candies }}", "ranked_candies")),
     counter("kpi-peanut", "Peanut-free bowl", "peanut_free_kept", PCT, 6,
             "Share of the unrestricted bowl's popularity retained"),
-    counter("kpi-all-six", "Free of all six allergens", "all_six_kept", PCT, 9,
-            "Peanut, tree nut, milk, gluten, soy and egg"),
-    {"widget": {"name": "kept-by-restriction", "queries": q("ds_bowls", ["restriction_label", "popularity_kept"]),
-                "spec": {"version": 3, "widgetType": "bar",
-                         "encodings": {"x": {"fieldName": "restriction_label",
-                                             "scale": {"type": "categorical", "sort": {"by": "alphabetical"}},
-                                             "displayName": "Restriction"},
-                                       "y": {"fieldName": "popularity_kept", "scale": {"type": "quantitative"},
-                                             "displayName": "Popularity retained", "format": PCT},
-                                       "color": {"fieldName": "restriction_label",
-                                                 "scale": {"type": "categorical", "mappings": BAR_COLORS},
-                                                 "displayName": "Restriction", "legend": {"hide": True}},
-                                       "label": {"show": True}},
-                         "frame": {"showTitle": True, "title": "Popularity retained by each restriction",
-                                   "showDescription": True,
-                                   "description": "Average win rate of each bowl compared with the unrestricted bowl"}}},
-     "position": pos(0, 6, 6, 6)},
+    counter("kpi-changed", "Allergen labels changed since 2017", "candies_changed", {"type": "number-plain"}, 9,
+            "Candies with current data whose status changed",
+            ("{{ @formatted }} of {{ candies_compared }}", "candies_compared")),
+
+    bar("kept-by-restriction", "ds_bowls", ("restriction_label", "Restriction", ORDERED),
+        ("popularity_kept", "Popularity retained", {"format": PCT}),
+        "Popularity retained by each restriction",
+        "Average win rate of each bowl compared with the unrestricted bowl", (0, 6, 6, 6),
+        color=by_restriction(BAR_COLORS)),
+    bar("chocolate-mix", "ds_bowl_mix", ("restriction_label", "Restriction", ORDERED),
+        ("candies", "Candies in the bowl", {}),
+        "Chocolate disappears as restrictions are added",
+        "Chocolate and non-chocolate candies in each 10-candy bowl", (6, 6, 6, 6),
+        color={"fieldName": "candy_type", "displayName": "Candy type", "scale": {"type": "categorical", "mappings": [
+            {"value": "Chocolate", "color": "#9A5B2E"}, {"value": "Non-chocolate", "color": ORANGE}]}}),
+
+    bar("sugar-by-bowl", "ds_bowls", ("restriction_label", "Restriction", ORDERED),
+        ("median_sugars_100g", "Median sugar (g per 100 g)", {}),
+        "Allergy-safe bowls contain more sugar",
+        "Median sugar per 100 g in each bowl. Safe bowls rely on fruit candy instead of chocolate.", (0, 12, 6, 6),
+        color=by_restriction(SUGAR_COLORS)),
+    bar("matching-methods", "ds_methods", ("method_label", "Method", {}),
+        [("candies_matched", "Candies matched"), ("non_candy_products", "Non-candy products matched")],
+        "Curated rules remove every false match",
+        "Matching on the name alone pulls in coffee creamer, ice cream and cereal", (6, 12, 6, 6),
+        mark={"layout": "group"}),
+
+    {"widget": {"name": "allergen-heatmap", "queries": q("ds_heatmap", ["allergen", "candy_label", "severity"]),
+                "spec": {"version": 3, "widgetType": "heatmap",
+                         "encodings": {
+                             "x": {"fieldName": "allergen", "displayName": "Allergen", "axis": {"hideTitle": True},
+                                   "scale": {"type": "categorical", "sort": {"by": "custom-order", "orderedValues":
+                                             ["Peanut", "Tree nut", "Milk", "Gluten", "Soy", "Egg"]}}},
+                             "y": {"fieldName": "candy_label", "displayName": "Candy", "axis": {"hideTitle": True},
+                                   "scale": {"type": "categorical", "sort": {"by": "alphabetical"}}},
+                             "color": {"fieldName": "severity", "displayName": "Status",
+                                       "scale": {"type": "quantitative", "colorRamp": {
+                                           "mode": "custom-sequential",
+                                           "colors": {"start": "#2A2133", "end": ORANGE}}}}},
+                         "frame": frame("Allergen status of the 20 most popular candies",
+                                        "0 not listed, 1 may contain, 2 varies by product, 3 contains. "
+                                        "Blank cells have no matched ingredient list.")}},
+     "position": pos(0, 18, 12, 9)},
+
+    bar("change-outcomes", "ds_change_outcomes", ("outcome", "Outcome", {"sort": {"by": "custom-order",
+                                                                               "orderedValues": OUTCOMES}}),
+        ("candies", "Candies", {}),
+        "Is the 2017 answer still true?",
+        "Each candy's 2017 allergen status compared with products edited since the daily change feed started",
+        (0, 27, 6, 6),
+        color={"fieldName": "outcome", "displayName": "Outcome", "legend": NO_LEGEND,
+               "scale": {"type": "categorical", "mappings": [
+                   {"value": "Changed", "color": ORANGE}, {"value": "Unchanged", "color": PURPLE},
+                   {"value": "Newly covered", "color": AMBER}, {"value": "Not enough current data", "color": GREY}]}}),
+    bar("changes-by-allergen", "ds_changes_by_allergen", ("allergen_label", "Allergen", {"sort": {"by": "custom-order", "orderedValues":
+                                                                ["Peanut", "Tree nut", "Egg", "Soy", "Gluten", "Milk"]}}),
+        ("changes", "Changed statuses", {}),
+        "Which allergen statuses changed",
+        "Candy and allergen pairs whose status differs between 2017 and current labels", (6, 27, 6, 6),
+        color={"fieldName": "allergen_label", "displayName": "Allergen", "legend": NO_LEGEND,
+               "scale": {"type": "categorical", "mappings": [
+                   {"value": a, "color": ORANGE} for a in ["Peanut", "Tree nut", "Milk", "Gluten", "Soy", "Egg"]]}}),
+
+    table("changes", "ds_changes", "Allergen statuses that changed since 2017",
+          [("candy", "Candy", None), ("allergen", "Allergen", None), ("status_2017", "2017 status", None),
+           ("status_now", "Current status", None), ("evidence_2017", "2017 products", None),
+           ("evidence_now", "Current products", None), ("comparison_label", "Comparison", None)], 0, 33, 12, 6,
+          "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two "
+          "current products with ingredients are compared."),
     table("bowls", "ds_bowls", "Recommended bowls", [("restriction_label", "Restriction", None),
                                                      ("candies_allowed", "Eligible candies", None),
                                                      ("popularity_kept", "Popularity retained", PCT),
-                                                     ("bowl", "Top 10, most popular first", None)], 6, 6, 6, 6),
+                                                     ("bowl", "Top 10, most popular first", None)], 0, 39, 12, 5),
     table("candies", "ds_candies", "Allergen status of every ranked candy",
           [("popularity_rank", "Rank", None), ("candy", "Candy", None), ("win_rate", "Win rate", PCT),
            ("n_products", "Products matched", None), ("n_evidence", "With ingredients", None),
            ("evidence_scope", "Evidence source", None), ("peanut", "Peanut", None), ("tree_nut", "Tree nut", None),
            ("milk", "Milk", None), ("gluten", "Gluten", None), ("soy", "Soy", None), ("egg", "Egg", None),
-           ("sugars_100g", "Sugar (g/100 g)", None)], 0, 12, 12, 9, STATUS),
-    table("methods", "ds_methods", "Name matching compared with curated rules",
-          [("method_label", "Method", None), ("candies_matched", "Candies matched", None),
-           ("products_matched", "Products matched", None), ("us_products_matched", "US products", None),
-           ("non_candy_products", "Non-candy matches", None)], 0, 21, 6, 6,
-          "Matching on the name alone pulls in coffee creamer, ice cream and cereal"),
+           ("sugars_100g", "Sugar (g/100 g)", None)], 0, 44, 12, 8, STATUS),
     table("quality", "ds_quality", "Data-cleaning results", [("metric", "Check", None), ("value", "Rows", CNT)],
-          6, 21, 6, 6),
-    table("changes", "ds_changes", "Is the 2017 answer still true? Labels edited since the daily feed started",
-          [("candy", "Candy", None), ("allergen", "Allergen", None), ("status_2017", "2017 status", None),
-           ("status_now", "Current status", None), ("evidence_2017", "2017 products", None),
-           ("evidence_now", "Current products", None), ("comparison_label", "Comparison", None)], 0, 27, 12, 7,
-          "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two "
-          "current products with ingredients are compared."),
+          0, 52, 12, 5),
     text("footer", ["Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 "
-                    "snapshots from Kaggle, plus the Open Food Facts daily change feed. Allergen status is parsed from crowdsourced ingredient lists, is not "
-                    "medical advice, and may be out of date. Always check the package label. Each bowl and matching "
-                    "method is logged to the MLflow experiment candyops-candy-bowls."], 0, 34, 12, 2),
+                    "snapshots from Kaggle, plus the Open Food Facts daily change feed. Allergen status is parsed "
+                    "from crowdsourced ingredient lists, is not medical advice, and may be out of date. Always check "
+                    "the package label. Each bowl and matching method is logged to the MLflow experiment "
+                    "candyops-candy-bowls."], 0, 57, 12, 2),
 ]
 
 DASH = {"datasets": DATASETS,
