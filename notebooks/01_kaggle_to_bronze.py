@@ -10,11 +10,8 @@
 # MAGIC | `openfoodfacts/world-food-facts` v5 (ODbL) | `bronze_off_products` | 356,001 products x 163 columns, ~1 GB TSV |
 # MAGIC | `fivethirtyeight/the-ultimate-halloween-candy-power-ranking` v1 (MIT) | `bronze_candy_ranking` | 85 candies |
 # MAGIC
-# MAGIC dbt builds silver and gold from these tables. Re-running reuses the cached download.
-
-# COMMAND ----------
-
-# MAGIC %pip install -q kagglehub==1.0.3
+# MAGIC dbt builds silver and gold from these tables. Re-running reuses the files cached in the volume and skips
+# MAGIC installing kagglehub; it is installed only when a file is missing.
 
 # COMMAND ----------
 
