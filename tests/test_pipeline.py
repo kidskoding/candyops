@@ -143,3 +143,76 @@ def test_row_order_does_not_change_results(pipeline):
         return repr(sorted((k, repr(v)) for k, v in r.items()))
     for name in ("gold_order_fulfillment", "gold_material_balance", "gold_daily_line_production"):
         assert sorted(shuffled[name], key=key) == sorted(pipeline["gold"][name], key=key)
+
+
+def _summary(pipeline):
+    return {s["scenario_id"]: s for s in pipeline["gold"]["gold_scenario_summary"]}
+
+
+def test_overtime_cap_sweep_matches_scenarios_and_grows(pipeline):
+    s = _summary(pipeline)
+    caps = [r for r in pipeline["gold"]["gold_sweep"] if r["sweep_name"] == "overtime_cap_hours"]
+    by_cap = {r["days_or_hours"]: r for r in caps}
+    assert by_cap[0.0]["bags_ready_on_time"] == s["S1_NO_RECOVERY"]["bags_ready_on_time"]
+    assert by_cap[0.0]["incremental_cost_usd"] == 0
+    assert by_cap[4.0]["bags_ready_on_time"] == s["S2_OVERTIME"]["bags_ready_on_time"]
+    assert by_cap[4.0]["incremental_cost_usd"] == s["S2_OVERTIME"]["incremental_cost_usd"]
+    bags = [r["bags_ready_on_time"] for r in sorted(caps, key=lambda r: r["days_or_hours"])]
+    assert bags == sorted(bags)
+
+
+def test_earlier_film_never_hurts_and_matches_scenarios(pipeline):
+    s = _summary(pipeline)
+    sweep = [r for r in pipeline["gold"]["gold_sweep"] if r["sweep_name"] == "film_delivery_date"]
+    for option, on_time_oct30, on_time_oct27 in (
+            ("transfer", "S3_TRANSFER", "S3B_TRANSFER_EARLY_WRAPPERS"),
+            ("overtime+transfer", "S4_OVERTIME_AND_TRANSFER", None)):
+        rows = sorted((r for r in sweep if r["option"] == option), key=lambda r: r["days_or_hours"])
+        assert [r["param_value"] for r in rows] == ["2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]
+        bags = [r["bags_ready_on_time"] for r in rows]
+        assert bags == sorted(bags, reverse=True)
+        assert rows[-1]["bags_ready_on_time"] == s[on_time_oct30]["bags_ready_on_time"]
+        if on_time_oct27:
+            assert rows[0]["bags_ready_on_time"] == s[on_time_oct27]["bags_ready_on_time"]
+
+
+def test_combined_option_not_worse_than_overtime_alone(pipeline):
+    s = _summary(pipeline)
+    assert s["S4_OVERTIME_AND_TRANSFER"]["bags_ready_on_time"] >= s["S2_OVERTIME"]["bags_ready_on_time"]
+    assert s["S4_OVERTIME_AND_TRANSFER"]["overtime_runtime_hours"] > 0
+    assert s["S4_OVERTIME_AND_TRANSFER"]["alternate_runtime_hours"] > 0
+
+
+def test_mlflow_tracking_logs_every_scenario_and_sweep_point(pipeline):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from candyops.tracking import log_runs, run_records
+
+    calls = []
+
+    class FakeMlflow:
+        def set_experiment(self, path):
+            calls.append(("experiment", path))
+
+        @contextmanager
+        def start_run(self, run_name, nested=False):
+            calls.append(("run", run_name, nested))
+            yield SimpleNamespace(info=SimpleNamespace(run_id="parent-1"))
+
+        def set_tags(self, tags):
+            assert all(isinstance(v, str) for v in tags.values())
+
+        def log_params(self, params):
+            assert all(v is not None for v in params.values())
+
+        def log_metrics(self, metrics):
+            assert all(isinstance(v, float) for v in metrics.values())
+
+    gold = pipeline["gold"]
+    records = run_records(gold)
+    assert len(records) == len(gold["gold_scenario_summary"]) + len(gold["gold_sweep"])
+    assert log_runs(FakeMlflow(), records, "/Users/x/candyops-scenarios", "parent") == "parent-1"
+    nested = [c for c in calls if c[0] == "run" and c[2]]
+    assert len(nested) == len(records)
+    assert calls[0] == ("experiment", "/Users/x/candyops-scenarios")
