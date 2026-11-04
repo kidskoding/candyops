@@ -74,6 +74,18 @@ ORDER BY method_label DESC""")},
 SELECT sort_order, replace(metric, '_', ' ') AS metric, value
 FROM gold_data_quality
 ORDER BY sort_order""")},
+    {"name": "ds_changes", "displayName": "2017 versus now", "queryLines": ql("""
+SELECT
+  candy,
+  replace(allergen, '_', ' ') AS allergen,
+  status_2017,
+  status_now,
+  evidence_2017,
+  evidence_now,
+  CASE comparison WHEN 'changed' THEN 'Changed' ELSE 'Newly covered' END AS comparison_label
+FROM gold_label_changes
+WHERE comparison IN ('changed', 'newly_covered')
+ORDER BY comparison, candy, allergen""")},
 ]
 
 PCT = {"type": "number-percent", "decimalPlaces": {"type": "max", "places": 1}}
@@ -172,10 +184,16 @@ LAYOUT = [
           "Matching on the name alone pulls in coffee creamer, ice cream and cereal"),
     table("quality", "ds_quality", "Data-cleaning results", [("metric", "Check", None), ("value", "Rows", CNT)],
           6, 21, 6, 6),
+    table("changes", "ds_changes", "Is the 2017 answer still true? Labels edited since the daily feed started",
+          [("candy", "Candy", None), ("allergen", "Allergen", None), ("status_2017", "2017 status", None),
+           ("status_now", "Current status", None), ("evidence_2017", "2017 products", None),
+           ("evidence_now", "Current products", None), ("comparison_label", "Comparison", None)], 0, 27, 12, 7,
+          "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two "
+          "current products with ingredients are compared."),
     text("footer", ["Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 "
-                    "snapshots from Kaggle. Allergen status is parsed from crowdsourced ingredient lists, is not "
+                    "snapshots from Kaggle, plus the Open Food Facts daily change feed. Allergen status is parsed from crowdsourced ingredient lists, is not "
                     "medical advice, and may be out of date. Always check the package label. Each bowl and matching "
-                    "method is logged to the MLflow experiment candyops-candy-bowls."], 0, 27, 12, 2),
+                    "method is logged to the MLflow experiment candyops-candy-bowls."], 0, 34, 12, 2),
 ]
 
 DASH = {"datasets": DATASETS,

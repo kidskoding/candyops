@@ -54,13 +54,23 @@ def main() -> None:
     methods = q("SELECT * FROM {s}.gold_match_methods ORDER BY method DESC")
     candies = q("SELECT popularity_rank, candy, win_percent, n_products, n_evidence, evidence_scope, peanut, tree_nut, "
                 "milk, gluten, soy, egg, sugars_100g FROM {s}.gold_candy_profile ORDER BY popularity_rank, candy")
+    changes = q("SELECT candy, allergen, status_2017, evidence_2017, status_now, evidence_now, comparison "
+                "FROM {s}.gold_label_changes WHERE comparison IN ('changed', 'newly_covered') "
+                "ORDER BY comparison, candy, allergen")
+    coverage = q("SELECT outcome, count(*) AS candies FROM (SELECT candy, CASE "
+                 "WHEN max(comparison = 'changed') THEN 'at least one allergen changed' "
+                 "WHEN max(comparison = 'newly_covered') THEN 'newly covered' "
+                 "WHEN max(comparison = 'unchanged') THEN 'all compared allergens unchanged' "
+                 "ELSE 'not enough current data' END AS outcome "
+                 "FROM {s}.gold_label_changes GROUP BY candy) GROUP BY outcome ORDER BY candies DESC")
     when = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     md = f"""# CandyOps results
 
 **Executed** {when} against `{a.catalog}.{a.schema}` on Databricks (regenerate: `scripts/write_results.py`).
 
-Data: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle.
+Data: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle, plus the
+Open Food Facts daily change feed (products edited since the feed archive started).
 Allergen statuses are parsed from crowdsourced ingredient lists, are not medical advice, and can be out of date.
 
 ## 1. Cleaning
@@ -80,7 +90,16 @@ win rate with the unrestricted bowl's.
 {table(methods, [("method", "Method"), ("candies_matched", "Candies matched"), ("candies_total", "Of"),
                  ("products_matched", "Products"), ("us_products_matched", "US products"),
                  ("non_candy_products", "Not candy")])}
-## 4. Every candy
+## 4. Is the 2017 answer still true?
+
+Allergen status per candy in the 2017 snapshot next to the products edited since the change feed started. A candy is
+compared only when it has at least 2 current products with an ingredient list; the bowls above still use 2017.
+
+{table(coverage, [("outcome", "Each candy, 2017 vs now"), ("candies", "Candies")])}
+{table(changes, [("candy", "Candy"), ("allergen", "Allergen"), ("status_2017", "2017"),
+                 ("evidence_2017", "2017 products"), ("status_now", "Now"),
+                 ("evidence_now", "Current products"), ("comparison", "Comparison")])}
+## 5. Every candy
 
 Statuses: `contains` (most evidence lists it), `varies` (some products do), `may_contain` (warning only),
 `not_listed`, `unknown` (no matched product with an ingredient list).

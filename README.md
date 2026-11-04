@@ -5,10 +5,12 @@
 A Databricks and dbt pipeline that finds which popular Halloween candies are safe for children with common food
 allergies. It joins a candy popularity vote with a crowdsourced database of 356,001 packaged foods, both public Kaggle
 datasets, and builds a 10-candy bowl for each allergy along with the share of popularity that each restriction costs.
+A daily incremental load of the Open Food Facts change feed then checks whether the 2017 answer still holds for the
+labels on shelves now.
 
 > [!WARNING]
-> Allergen flags are parsed from crowdsourced ingredient lists collected in 2017. They are not medical advice and may
-> be out of date. Always read the package label.
+> Allergen flags are parsed from crowdsourced ingredient lists. They are not medical advice and may be out of date.
+> Always read the package label.
 
 ## Contents
 
@@ -27,7 +29,12 @@ datasets, and builds a 10-candy bowl for each allergy along with the share of po
 | [`fivethirtyeight/the-ultimate-halloween-candy-power-ranking`](https://www.kaggle.com/datasets/fivethirtyeight/the-ultimate-halloween-candy-power-ranking) | MIT | Win rates for 85 candies from about 269,000 head-to-head votes | Apostrophes are mis-encoded (`HersheyÕs`), and two entries are coins, not candy |
 | [`openfoodfacts/world-food-facts`](https://www.kaggle.com/datasets/openfoodfacts/world-food-facts) | ODbL | Ingredients, allergens, sugar and serving size for packaged foods | About 1 GB of TSV with 356,001 rows and 163 columns; stray carriage returns, fields over 131,000 characters, many languages, and mostly empty allergen fields |
 
-Both datasets are 2017 snapshots, and the pipeline pins their Kaggle versions.
+Both datasets are 2017 snapshots, and the pipeline pins their Kaggle versions. A third, live source keeps the answer
+current:
+
+| Live source | License | Contents | Constraint |
+|---|---|---|---|
+| [Open Food Facts daily change feed](https://static.openfoodfacts.org/data/delta/index.txt) | ODbL | One gzipped JSON file per day with every product edited that day (about 100,000 products in two weeks) | Upstream keeps only about two weeks of files, so a missed window is lost unless it was archived |
 
 ## Results
 
@@ -46,6 +53,22 @@ compares a bowl's average win rate with that of the unrestricted bowl.
 Matching candies to products by name alone links 53 candies but also pulls in 80 products that are not candy, such as
 coffee creamer, ice cream and cereal. The curated matching rules link 68 candies with no non-candy matches.
 
+### Is the 2017 answer still true?
+
+The first two weeks of the daily change feed held 98,694 product edits, 348 of them for ranked candies. Twenty-one
+candies had at least two current products with ingredient lists, enough to compare with 2017:
+
+| Each candy, 2017 vs now | Candies |
+|---|---|
+| At least one allergen status changed | 12 |
+| All compared allergens unchanged | 7 |
+| Newly covered (too little 2017 data) | 2 |
+| Not enough current data yet | 62 |
+
+Butterfinger had no usable 2017 data; current labels show peanuts, milk and soy, which confirms the guard that keeps
+peanut-tagged candies out of nut-free bowls. Snickers and Milky Way moved from `varies` to `contains` for egg. The bowls
+stay on the pinned 2017 data, and the comparison grows as the daily job archives more of the feed.
+
 The full bowls, the allergen status of every candy and the cleaning metrics are in
 [`docs/results.md`](docs/results.md), which `scripts/write_results.py` regenerates from the gold tables.
 
@@ -53,11 +76,14 @@ The full bowls, the allergen status of every candy and the cleaning metrics are 
 
 ```mermaid
 flowchart LR
-  K["Kaggle<br/>2 pinned datasets"] -- "kagglehub" --> V["UC volume<br/>raw files"]
-  subgraph DBX["Databricks: one serverless job"]
+  K["Kaggle<br/>2 pinned datasets"] -- "kagglehub" --> V["UC volume<br/>raw files + feed archive"]
+  F["Open Food Facts<br/>daily change feed"] -- "daily download" --> V
+  subgraph DBX["Databricks: one serverless job, daily schedule"]
     V -- "01 notebook (Spark)" --> B["bronze_*<br/>raw strings"]
-    B -- "dbt build" --> S["silver_*<br/>typed, deduplicated,<br/>candy matches, allergen flags"]
-    S -- "dbt build" --> G["gold_*<br/>candy profiles, bowls,<br/>match methods, data quality"]
+    V -- "01b Auto Loader<br/>(incremental)" --> B
+    B -- "dbt build<br/>(MERGE for the feed)" --> S["silver_*<br/>typed, deduplicated,<br/>candy matches, allergen flags"]
+    S -- "dbt snapshot" --> H["candy_product_history<br/>Type 2 label history"]
+    S -- "dbt build" --> G["gold_*<br/>candy profiles, bowls,<br/>2017 vs now, data quality"]
     G -- "02 notebook" --> M["MLflow<br/>one run per bowl and method"]
   end
   SEED["dbt seeds<br/>matching rules, allergen terms"] --> S
@@ -70,6 +96,16 @@ flowchart LR
 Catalog volume, which caches them between runs, and loads every column unchanged as a string. The TSV is split on
 `\n` only. Twenty-six rows contain a stray `\r` that pandas and the default CSV readers treat as a line break, which
 would produce 356,027 rows instead of 356,001. A dbt test pins both row counts.
+
+### Change feed (incremental)
+
+[`notebooks/01b_change_feed_to_bronze.py`](notebooks/01b_change_feed_to_bronze.py) runs daily. It archives each new
+feed file into the volume, so files stay after they expire upstream, and loads them with Auto Loader
+(`trigger(availableNow=True)`). The checkpoint guarantees each file is appended to `bronze_off_changes` exactly once,
+however often the job runs. [`silver_product_changes`](dbt/models/silver/silver_product_changes.sql) is an incremental
+dbt model that reads only rows newer than its last run and `MERGE`s them on barcode, keeping the latest edit. The
+[`candy_product_history`](dbt/snapshots/candy_product_history.sql) snapshot records every label edit of a candy product
+as a Type 2 history row. A dbt test warns when consecutive archived files leave a gap.
 
 ### Silver
 
@@ -86,8 +122,10 @@ would produce 356,027 rows instead of 356,001. A dbt test pins both row counts.
 ### Gold
 
 Each candy receives one of five statuses per allergen: `contains`, `varies`, `may_contain`, `not_listed` or
-`unknown`. US products are used when at least two of them have ingredient lists, because US and European recipes of
-the same bar differ.
+`unknown`. US products alone decide when at least three of them have ingredient lists, because US and European
+recipes of the same bar differ. With fewer, all countries count: two junk US records (a popcorn listing named
+"Snickers" and a wrapper scan of customer-service text) once outvoted 25 proper Snickers labels. Mixed packs and
+variety packs are excluded, because their allergens belong to other candies.
 
 A bowl takes the 10 most popular candies that are `not_listed` for every restricted allergen. The peanut-free and
 nut-free bowls also exclude every candy that the ranking itself tags as containing peanuts or almonds. This guard
@@ -95,6 +133,8 @@ exists because Butterfinger once entered the peanut-free bowl: its only matched 
 caramel apple and marshmallow squares made with it.
 
 `gold_match_methods` compares name-only matching with the curated rules and shows why the rules are necessary.
+`gold_label_changes` puts each candy's 2017 status next to its status in the products edited since the feed started.
+The bowls stay on the pinned 2017 data, so they are reproducible.
 
 ### MLflow
 
@@ -104,7 +144,8 @@ matching method, with the dataset versions recorded as parameters.
 ### Tests
 
 `dbt build` runs every model with its tests: keys, relationships, accepted values, value ranges, pinned row counts, a
-check that every candy in a restricted bowl is safe, and a check that every ranked candy has a matching rule.
+check that every candy in a restricted bowl is safe, a check that no peanut or almond candy reaches a nut-free bowl, a
+check that every ranked candy has a matching rule, and a warning when the change-feed archive has a gap.
 
 ## Getting started
 
@@ -175,16 +216,20 @@ short-lived personal access token.
   contain" phrases, but not every possible wording. A candy counts as safe only when every restricted allergen is
   `not_listed` on at least two products, so gaps in the data exclude candies rather than wrongly include them.
 - Popularity comes from an online vote, not from sales data.
+- The change feed holds only products edited since the archive started, not a full current database, so the 2017 vs
+  now comparison covers only candies with at least two edited products that have ingredient lists. The feed is more
+  international than the 2017 file, and the parser does not read every language (for example Spanish "puede
+  contener" or Polish ingredient words), so some current statuses miss warnings.
 
 ## Project layout
 
 ```
-notebooks/       01_kaggle_to_bronze.py, 02_mlflow_and_summary.py (Databricks source format)
-dbt/             dbt project: seeds (matching rules), silver and gold models, tests, macros, profiles
-src/candyops/    configuration, Kaggle download and reader options, MLflow tracking, Spark I/O
+notebooks/       01_kaggle_to_bronze.py, 01b_change_feed_to_bronze.py, 02_mlflow_and_summary.py
+dbt/             dbt project: seeds (matching rules), silver and gold models, snapshots, tests, macros, profiles
+src/candyops/    configuration, Kaggle download, change-feed file parsing, MLflow tracking, Spark I/O
 dashboards/      candyops.lvdash.json, generated by scripts/build_dashboard.py
 scripts/         build_dashboard.py, write_results.py
 docs/            results.md, generated from the Databricks gold tables
-tests/           pytest: seed regular expressions on real product text, MLflow logging
-databricks.yml   asset bundle: pipeline job and dashboard
+tests/           pytest: seed regular expressions on real product text, feed gaps, MLflow logging
+databricks.yml   asset bundle: daily pipeline job and dashboard
 ```

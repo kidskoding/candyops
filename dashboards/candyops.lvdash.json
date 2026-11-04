@@ -81,6 +81,23 @@
         "FROM gold_data_quality\n",
         "ORDER BY sort_order"
       ]
+    },
+    {
+      "name": "ds_changes",
+      "displayName": "2017 versus now",
+      "queryLines": [
+        "SELECT\n",
+        "  candy,\n",
+        "  replace(allergen, '_', ' ') AS allergen,\n",
+        "  status_2017,\n",
+        "  status_now,\n",
+        "  evidence_2017,\n",
+        "  evidence_now,\n",
+        "  CASE comparison WHEN 'changed' THEN 'Changed' ELSE 'Newly covered' END AS comparison_label\n",
+        "FROM gold_label_changes\n",
+        "WHERE comparison IN ('changed', 'newly_covered')\n",
+        "ORDER BY comparison, candy, allergen"
+      ]
     }
   ],
   "pages": [
@@ -779,16 +796,108 @@
         },
         {
           "widget": {
-            "name": "footer",
-            "multilineTextboxSpec": {
-              "lines": [
-                "Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle. Allergen status is parsed from crowdsourced ingredient lists, is not medical advice, and may be out of date. Always check the package label. Each bowl and matching method is logged to the MLflow experiment candyops-candy-bowls."
-              ]
+            "name": "changes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_changes",
+                  "fields": [
+                    {
+                      "name": "candy",
+                      "expression": "`candy`"
+                    },
+                    {
+                      "name": "allergen",
+                      "expression": "`allergen`"
+                    },
+                    {
+                      "name": "status_2017",
+                      "expression": "`status_2017`"
+                    },
+                    {
+                      "name": "status_now",
+                      "expression": "`status_now`"
+                    },
+                    {
+                      "name": "evidence_2017",
+                      "expression": "`evidence_2017`"
+                    },
+                    {
+                      "name": "evidence_now",
+                      "expression": "`evidence_now`"
+                    },
+                    {
+                      "name": "comparison_label",
+                      "expression": "`comparison_label`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "candy",
+                    "displayName": "Candy"
+                  },
+                  {
+                    "fieldName": "allergen",
+                    "displayName": "Allergen"
+                  },
+                  {
+                    "fieldName": "status_2017",
+                    "displayName": "2017 status"
+                  },
+                  {
+                    "fieldName": "status_now",
+                    "displayName": "Current status"
+                  },
+                  {
+                    "fieldName": "evidence_2017",
+                    "displayName": "2017 products"
+                  },
+                  {
+                    "fieldName": "evidence_now",
+                    "displayName": "Current products"
+                  },
+                  {
+                    "fieldName": "comparison_label",
+                    "displayName": "Comparison"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Is the 2017 answer still true? Labels edited since the daily feed started",
+                "showDescription": true,
+                "description": "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two current products with ingredients are compared."
+              }
             }
           },
           "position": {
             "x": 0,
             "y": 27,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "footer",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle, plus the Open Food Facts daily change feed. Allergen status is parsed from crowdsourced ingredient lists, is not medical advice, and may be out of date. Always check the package label. Each bowl and matching method is logged to the MLflow experiment candyops-candy-bowls."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 34,
             "width": 12,
             "height": 2
           }
