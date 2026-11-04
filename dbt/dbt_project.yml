@@ -6,12 +6,14 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
 target-path: target
 clean-targets: [target, dbt_packages, logs]
 
 vars:
   bowl_size: 10
   min_evidence: 2  # matched products with an ingredient list before a candy can count as safe
+  min_us_evidence: 3  # US products needed before US recipes alone decide (a couple of junk US records once outvoted 25 labels)
 
 seeds:
   candyops:

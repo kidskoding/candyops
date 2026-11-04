@@ -10,6 +10,13 @@ models:
         tests: [{value_between: {arguments: {min: 0, max: 100}}}]
       - name: serving_g
         tests: [{value_between: {arguments: {min: 0, max: 500}}}]
+  - name: silver_product_changes
+    description: Current version of every product edited since the change feed started (incremental MERGE on code)
+    columns:
+      - name: code
+        tests: [unique, not_null]
+      - name: sugars_100g
+        tests: [{value_between: {arguments: {min: 0, max: 100}}}]
   - name: silver_candy_ranking
     description: The 85 ranked "candies" (83 candies and 2 coins) with apostrophes repaired
     columns:
@@ -20,13 +27,13 @@ models:
   - name: silver_candy_matches
     description: Ranked candy -> matched Open Food Facts product
     tests:
-      - unique_combination: {arguments: {columns: [candy, code]}}
+      - unique_combination: {arguments: {columns: [vintage, candy, code]}}
     columns:
       - name: candy
         tests: [not_null, {relationships: {arguments: {to: ref('silver_candy_ranking'), field: candy}}}]
       - name: code
-        tests: [not_null, {relationships: {arguments: {to: ref('silver_products'), field: code}}}]
+        tests: [not_null]
   - name: silver_product_allergens
     description: Per matched product and allergen, whether the label says contains or may contain
     tests:
-      - unique_combination: {arguments: {columns: [code, allergen]}}
+      - unique_combination: {arguments: {columns: [vintage, code, allergen]}}

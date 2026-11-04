@@ -1,18 +1,23 @@
 -- Allergen flags for every matched product, parsed from its ingredient list, allergens field and traces field.
 -- Text after "may contain" / "made on shared equipment" counts as may_contain, not contains.
 with products as (
+    {% for vintage, model in [('snapshot_2017', 'silver_products'), ('change_feed', 'silver_product_changes')] -%}
     select
+        '{{ vintage }}' as vintage,
         p.code,
         p.ingredients_text is not null as has_ingredients,
         {{ normalize_text('p.ingredients_text') }} as ingredients,
         coalesce({{ normalize_text('p.allergens') }}, '') as allergens,
         coalesce({{ normalize_text('p.traces') }}, '') as traces
-    from {{ ref('silver_products') }} as p
-    where p.code in (select code from {{ ref('silver_candy_matches') }})
+    from {{ ref(model) }} as p
+    where p.code in (select code from {{ ref('silver_candy_matches') }} where vintage = '{{ vintage }}')
+    {{ 'union all' if not loop.last }}
+    {% endfor %}
 ),
 
 split_text as (
     select
+        vintage,
         code,
         has_ingredients,
         allergens,
@@ -25,6 +30,7 @@ split_text as (
 )
 
 select
+    s.vintage,
     s.code,
     t.allergen,
     s.has_ingredients,
