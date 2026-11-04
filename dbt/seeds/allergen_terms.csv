@@ -1,0 +1,7 @@
+allergen,contains_regex,ignore_regex
+peanut,\b(peanuts?|arachis|arachides?|cacahuetes?|erdnuss\w*)\b,
+tree_nut,\b(almonds?|hazelnuts?|cashews?|pecans?|walnuts?|pistachios?|macadamias?|brazil nuts?|filberts?|pralines?|tree nuts?|nuts|amandes?|noisettes?|noix|mandeln|haselnuss\w*|nocciole)\b,\b(coconuts?|nutmeg|butternut|noix de coco)\b
+milk,\b(milk|milkfat|cream|butter|butterfat|buttermilk|whey|casein\w*|lactose|ghee|curds?|yogh?urt|lait|beurre|creme|lactoserum|milch\w*|vollmilch\w*|sahne|butterreinfett|latte|leche)\b,\b(cocoa butter|cacao butter|peanut butter|shea butter|nut butter|coconut (milk|cream)|cream of tartar|beurre de cacao|kakaobutter|lait de coco|milk ?free|dairy ?free|non ?dairy)\b
+gluten,\b(wheat|barley|rye|malt|malted|spelt|gluten|semolina|ble|froment|orge|seigle|weizen\w*|gerste\w*|roggen|dinkel)\b,\b(gluten ?free|sans gluten|glutenfrei|buckwheat)\b
+soy,\b(soy|soya|soja|soybeans?)\b,
+egg,\b(eggs?|albumen|albumin|ovalbumin|oeufs?|eier|vollei|huhnerei\w*)\b,

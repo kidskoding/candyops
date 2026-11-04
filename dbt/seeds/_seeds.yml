@@ -1,0 +1,22 @@
+version: 2
+
+seeds:
+  - name: candy_aliases
+    description: Hand-written regex rules that link each ranked candy to its Open Food Facts product names
+    columns:
+      - name: competitorname
+        tests: [unique, not_null, {relationships: {arguments: {to: ref('silver_candy_ranking'), field: candy}}}]
+      - name: include
+        tests: [not_null]
+  - name: allergen_terms
+    description: Ingredient words per allergen (English, French, German), plus phrases that look like one but are not
+    columns:
+      - name: allergen
+        tests: [unique, not_null]
+  - name: restrictions
+    description: Which allergens each bowl must avoid
+  - name: text_rules
+    description: Shared regex rules (non-candy products, may-contain phrases, negations)
+    columns:
+      - name: rule
+        tests: [unique, not_null]

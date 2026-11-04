@@ -1,0 +1,4 @@
+rule,pattern
+not_candy,\b(ice ?cream|cereal|protein|cakes?|brownies?|spread|syrup|shakes?|beverage|drinks?|yogh?urt|frozen|pudding|creamer|cookie dough|muffins?|popcorn|pie|coffee|frosting|cheesecake|cupcakes?|pancakes?|made with|caramel apples?|marshmallows?|trail mix|sundaes?|blizzard)\b
+may_contain,\b(may contain|may also contain|traces? of|processed (in|on)|manufactured (in|on)|made (in|on) (a )?(shared )?(equipment|facility)|produced in a facility|peut contenir|kann spuren)
+negation,\b(no|without|free of) (added )?\w+|\b\w+ ?- ?free\b|\b\w+ free\b

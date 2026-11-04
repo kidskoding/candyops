@@ -1,0 +1,12 @@
+# Local and CI runs. Databricks dbt tasks generate their own profile from the job's warehouse.
+candyops:
+  target: databricks
+  outputs:
+    databricks:
+      type: databricks
+      host: "{{ env_var('DATABRICKS_HOST') | replace('https://', '') | replace('/', '') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      catalog: "{{ env_var('DBT_CATALOG', 'workspace') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'candyops') }}"
+      threads: 4

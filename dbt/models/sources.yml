@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: Raw Kaggle files loaded unchanged, as strings, by notebooks/01_kaggle_to_bronze.py
+    schema: "{{ var('bronze_schema', target.schema) }}"  # CI builds into its own schema from prod bronze
+    tables:
+      - name: bronze_off_products
+        description: Open Food Facts world-food-facts v5 (ODbL), all 163 columns
+      - name: bronze_candy_ranking
+        description: FiveThirtyEight Ultimate Halloween Candy Power Ranking v1 (MIT)

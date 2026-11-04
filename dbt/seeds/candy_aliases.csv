@@ -1,0 +1,84 @@
+competitorname,include,exclude
+100 Grand,\b100 grand\b,
+3 Musketeers,\b3 ?musketeers\b|three musketeers,
+Air Heads,\bair ?heads\b,
+Almond Joy,\balmond joy\b,
+Baby Ruth,\bbaby ruth\b,
+Boston Baked Beans,\bboston baked beans\b,
+Candy Corn,\bcandy corn\b,
+Caramel Apple Pops,\bcaramel apple pops?\b,
+Charleston Chew,\bcharleston chew\b,
+Chewey Lemonhead Fruit Mix,(?=.*\blemonhead\b)(?=.*\b(chewy|fruit mix)\b),
+Chiclets,\bchiclets\b,
+Dots,(?=.*\bdots\b)(?=.*\btootsie\b),
+Dum Dums,\bdum ?dums\b,
+Fruit Chews,(?=.*\bfruit chews\b)(?=.*\btootsie\b),
+Fun Dip,\bfun dip\b,
+Gobstopper,\bgobstoppers?\b,
+Haribo Gold Bears,(?=.*\bharibo\b)(?=.*\bgold ?(bears|baren)\b),
+Haribo Happy Cola,(?=.*\bharibo\b)(?=.*\bhappy cola\b),
+Haribo Sour Bears,(?=.*\bharibo\b)(?=.*\bsour\b)(?=.*\bbears?\b),
+Haribo Twin Snakes,(?=.*\bharibo\b)(?=.*\btwin snakes\b),
+Hershey's Kisses,(?=.*\bhersheys?\b)(?=.*\bkisses\b),\bcookies?\b
+Hershey's Krackel,\bkrackel\b,
+Hershey's Milk Chocolate,(?=.*\bhersheys?\b)(?=.*\bmilk chocolate\b),\b(kisses|almonds?|nuggets|miniatures|cookies?|caramel|pretzel|drops|syrup|cocoa)\b
+Hershey's Special Dark,\bspecial dark\b,
+Jawbusters,\bjawbust,
+Junior Mints,\bjunior mints\b,
+Kit Kat,\bkit ?kat\b,\b(chunky|white|dark|mint|peanut butter|matcha|biscuit|cookie)\b
+Laffy Taffy,\blaffy taffy\b,
+Lemonhead,\blemonheads?\b,\b(chewy|fruit mix)\b
+Lifesavers big ring gummies,(?=.*\blife ?savers\b)(?=.*\bgumm(y|ies)\b),
+Peanut butter M&M's,(?=.*\bm ?& ?m'?s?\b)(?=.*\bpeanut butter\b),
+M&M's,\bm ?& ?m'?s?\b,\b(peanut|almonds?|pretzel|caramel|crispy|cookies?|mint|dark|coconut|raspberry)\b
+Mike & Ike,\bmike (&|and) ike\b,
+Milk Duds,\bmilk duds\b,
+Milky Way,\bmilky way\b,\b(midnight|simply caramel|dark|lite)\b
+Milky Way Midnight,(?=.*\bmilky way\b)(?=.*\b(midnight|dark)\b),
+Milky Way Simply Caramel,(?=.*\bmilky way\b)(?=.*\bsimply caramel\b),
+Mounds,\bmounds\b,
+Mr Good Bar,\bmr\.? ?good ?bar\b,
+Nerds,\bnerds\b,\b(rope|clusters?|gummy)\b
+Nestle Butterfinger,\bbutterfinger\b,\b(cups?|bites|crisp)\b
+Nestle Crunch,(?=.*\bcrunch\b)(?=.*\bnestle\b),\b(white|caramel|peanut butter|crisp)\b
+Nik L Nip,\bnik ?l ?nip\b,
+Now & Later,\bnow (&|and) later\b,
+Payday,\bpay ?day\b,
+Peanut M&Ms,(?=.*\bm ?& ?m'?s?\b)(?=.*\bpeanut\b),\bpeanut butter\b
+Pixie Sticks,\bpixy stix\b|\bpixie sticks?\b,
+Pop Rocks,\bpop rocks\b,
+Red vines,\bred vines\b,
+Reese's Miniatures,(?=.*\breeses?\b)(?=.*\bminiatures?\b),\b(white|dark|big cup|pieces)\b
+Reese's Peanut Butter cup,(?=.*\breeses?\b)(?=.*\bpeanut butter cups?\b),\b(white|dark|big cup|miniatures?|pieces|stuffed|thins|unwrapped|minis)\b
+Reese's pieces,\breeses? pieces\b,\b(stuffed|cups?)\b
+Reese's stuffed with pieces,(?=.*\breeses?\b)(?=.*\bstuffed\b),
+Ring pop,\bring pops?\b,
+Rolo,\brolos?\b,
+Root Beer Barrels,\broot beer barrels?\b,
+Runts,\brunts\b,
+Sixlets,\bsixlets\b,
+Skittles original,\bskittles\b,\b(wild ?berry|sour|tropical|smoothie|desserts?|darkside|orchards?|sweet heat|crazy cores|blenders)\b
+Skittles wildberry,(?=.*\bskittles\b)(?=.*\bwild ?berry\b),
+Nestle Smarties,(?=.*\bsmarties\b)(?=.*\b(nestle|chocolate)\b),
+Smarties candy,\bsmarties\b,\b(nestle|chocolate)\b
+Snickers,\bsnickers\b,\b(crisper|almonds?|peanut butter|dark|protein|hazelnut|salted|white|xtreme|rockin)\b
+Snickers Crisper,\bsnickers crisper\b,
+Sour Patch Kids,\bsour patch kids\b,
+Sour Patch Tricksters,\btricksters\b,
+Starburst,\bstarburst\b,\b(jelly beans|gummies|minis|sour|tropical|fave reds|duos|swirlers)\b
+Strawberry bon bons,(?=.*\bbon ?bons\b)(?=.*\bstrawberry\b),
+Sugar Babies,\bsugar babies\b,
+Sugar Daddy,\bsugar daddy\b,
+Super Bubble,\bsuper bubble\b,
+Swedish Fish,\bswedish fish\b,
+Tootsie Pop,\btootsie (roll )?pops?\b,
+Tootsie Roll Juniors,(?=.*\btootsie roll\b)(?=.*\bjuniors?\b),
+Tootsie Roll Midgies,(?=.*\btootsie roll\b)(?=.*\bmidg(ee|ie)s\b),
+Tootsie Roll Snack Bars,(?=.*\btootsie roll\b)(?=.*\bsnack bars?\b),
+Trolli Sour Bites,(?=.*\btrolli\b)(?=.*\bsour\b)(?=.*\bbites?\b),
+Twix,\btwix\b,\b(peanut butter|dark|white|salted|cookie dough)\b
+Twizzlers,\btwizzlers\b,
+Warheads,\bwarheads\b,
+Welch's Fruit Snacks,(?=.*\bwelchs\b)(?=.*\bfruit snacks\b),
+Werther's Original Caramel,\bwerthers\b,\b(sugar free|chocolate)\b
+Whoppers,\bwhoppers\b,

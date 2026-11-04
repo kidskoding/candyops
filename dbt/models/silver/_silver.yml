@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: silver_products
+    description: One typed row per Open Food Facts barcode, whitespace-cleaned, with a normalised search_text
+    columns:
+      - name: code
+        tests: [unique, not_null]
+      - name: sugars_100g
+        tests: [{value_between: {arguments: {min: 0, max: 100}}}]
+      - name: serving_g
+        tests: [{value_between: {arguments: {min: 0, max: 500}}}]
+  - name: silver_candy_ranking
+    description: The 85 ranked "candies" (83 candies and 2 coins) with apostrophes repaired
+    columns:
+      - name: candy
+        tests: [unique, not_null]
+      - name: win_percent
+        tests: [not_null, {value_between: {arguments: {min: 0, max: 100}}}]
+  - name: silver_candy_matches
+    description: Ranked candy -> matched Open Food Facts product
+    tests:
+      - unique_combination: {arguments: {columns: [candy, code]}}
+    columns:
+      - name: candy
+        tests: [not_null, {relationships: {arguments: {to: ref('silver_candy_ranking'), field: candy}}}]
+      - name: code
+        tests: [not_null, {relationships: {arguments: {to: ref('silver_products'), field: code}}}]
+  - name: silver_product_allergens
+    description: Per matched product and allergen, whether the label says contains or may contain
+    tests:
+      - unique_combination: {arguments: {columns: [code, allergen]}}

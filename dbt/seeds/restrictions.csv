@@ -1,0 +1,13 @@
+restriction,allergen
+no_restriction,
+peanut_free,peanut
+nut_free,peanut
+nut_free,tree_nut
+milk_free,milk
+gluten_free,gluten
+free_of_all_six,peanut
+free_of_all_six,tree_nut
+free_of_all_six,milk
+free_of_all_six,gluten
+free_of_all_six,soy
+free_of_all_six,egg

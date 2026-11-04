@@ -1,0 +1,28 @@
+name: candyops
+version: "1.0.0"
+profile: candyops
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: target
+clean-targets: [target, dbt_packages, logs]
+
+vars:
+  bowl_size: 10
+  min_evidence: 2  # matched products with an ingredient list before a candy can count as safe
+
+seeds:
+  candyops:
+    +column_types:
+      include: string
+      exclude: string
+      contains_regex: string
+      ignore_regex: string
+      pattern: string
+      allergen: string
+
+models:
+  candyops:
+    +materialized: table
