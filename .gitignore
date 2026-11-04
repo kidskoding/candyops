@@ -9,3 +9,7 @@ derby.log
 .env
 .ruff_cache/
 docs/linkedin_draft.md
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/profiles/.user.yml

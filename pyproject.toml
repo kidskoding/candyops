@@ -1,11 +1,11 @@
 [project]
 name = "candyops"
 version = "0.1.0"
-description = "CandyOps — Halloween manufacturing analytics with Databricks (synthetic demo)"
+description = "CandyOps: allergy-safe Halloween candy picks from Kaggle data, built with Databricks and dbt"
 authors = [
     { name = "Anirudh Konidala", email = "anirudhkonidala@gmail.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = []
 
 [build-system]
@@ -13,13 +13,16 @@ requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
+data = [
+    "kagglehub>=1.0.3,<2",
+]
+# shortcut: dbt-core 1.12 needs dbt-core-experimental-parser, which fails to build here; retry when it ships wheels
+dbt = [
+    "dbt-databricks>=1.10,<1.11",
+]
 dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.3",
-]
-spark = [
-    "delta-spark>=4.0,<4.1",
-    "pyspark>=4.0,<4.1",
 ]
 
 [tool.pytest.ini_options]
@@ -28,7 +31,7 @@ addopts = "-v"
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 extend-exclude = ["out"]
 
 [tool.ruff.lint]
@@ -38,5 +41,4 @@ select = ["E", "F", "W", "B", "I", "UP"]
 # Databricks injects spark/dbutils/display; imports follow the sys.path setup cell
 "notebooks/*" = ["F821", "E402", "E501"]
 "scripts/*" = ["E402"]
-# Markdown report template
-"scripts/run_local.py" = ["E402", "E501"]
+"scripts/build_dashboard.py" = ["E501"]
