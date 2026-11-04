@@ -138,7 +138,7 @@ BAR_COLORS = [{"value": "1 No restriction", "color": GREY}] + [
     ["2 Peanut-free", "3 Nut-free", "4 Milk-free", "5 Gluten-free", "6 Free of all six"]]
 
 LAYOUT = [
-    text("title", ["# CandyOps: Allergy-Safe Halloween Candy"], 0, 0, 12, 1),
+    text("title", ["# candyops: Allergy-Safe Halloween Candy"], 0, 0, 12, 1),
     text("subtitle", ["Popularity comes from 269,000 head-to-head votes in FiveThirtyEight's Candy Power Ranking. "
                       "Allergen status comes from 356,001 Open Food Facts products, cleaned and matched with dbt. "
                       "Each bowl contains the 10 most popular candies whose labels list none of the restricted "

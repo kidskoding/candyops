@@ -65,7 +65,7 @@ def main() -> None:
                  "FROM {s}.gold_label_changes GROUP BY candy) GROUP BY outcome ORDER BY candies DESC")
     when = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
-    md = f"""# CandyOps results
+    md = f"""# candyops results
 
 **Executed** {when} against `{a.catalog}.{a.schema}` on Databricks (regenerate: `scripts/write_results.py`).
 

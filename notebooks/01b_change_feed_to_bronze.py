@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # CandyOps 01b: Open Food Facts change feed to Bronze (incremental)
+# MAGIC # candyops 01b: Open Food Facts change feed to Bronze (incremental)
 # MAGIC
 # MAGIC Open Food Facts publishes one file per day with every product edited that day and keeps only about two
 # MAGIC weeks of files. This notebook:

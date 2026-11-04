@@ -1,1 +1,1 @@
-"""CandyOps: Halloween manufacturing analytics demo on synthetic data."""
+"""candyops: allergy-safe Halloween candy picks from public Kaggle and Open Food Facts data."""

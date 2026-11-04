@@ -1,4 +1,4 @@
-# CandyOps results
+# candyops results
 
 **Executed** 2026-11-04 16:33 UTC against `workspace.candyops_dev` on Databricks (regenerate: `scripts/write_results.py`).
 

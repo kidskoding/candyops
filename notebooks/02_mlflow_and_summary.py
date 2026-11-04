@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # CandyOps 02: Results to MLflow
+# MAGIC # candyops 02: Results to MLflow
 # MAGIC
 # MAGIC Runs after `dbt build`. Logs one MLflow run per candy-bowl restriction and per matching method, with the
 # MAGIC dataset versions as parameters, so runs can be compared over time in the experiment UI.

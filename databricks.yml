@@ -4,7 +4,7 @@ bundle:
 
 variables:
   catalog:
-    description: Unity Catalog catalog for all CandyOps tables
+    description: Unity Catalog catalog for all candyops tables
     default: workspace
   schema:
     description: Project schema (bronze_*, silver_*, gold_* tables and the raw volume)
@@ -17,7 +17,7 @@ variables:
 resources:
   dashboards:
     candyops_dashboard:
-      display_name: CandyOps Allergy-Safe Halloween Candy
+      display_name: candyops Allergy-Safe Halloween Candy
       file_path: ./dashboards/candyops.lvdash.json
       warehouse_id: ${var.warehouse_id}
       dataset_catalog: ${var.catalog}

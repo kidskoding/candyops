@@ -1,4 +1,4 @@
-# CandyOps
+# candyops
 
 [![CI](https://github.com/kidskoding/candyops/actions/workflows/ci.yml/badge.svg)](https://github.com/kidskoding/candyops/actions/workflows/ci.yml)
 

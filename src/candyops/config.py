@@ -1,4 +1,4 @@
-"""Project constants. CandyOps analyses two public Kaggle datasets; it generates no data of its own."""
+"""Project constants. candyops analyses two public Kaggle datasets; it generates no data of its own."""
 
 DEFAULT_CATALOG = "workspace"
 DEFAULT_SCHEMA = "candyops"

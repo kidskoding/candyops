@@ -110,7 +110,7 @@
             "name": "title",
             "multilineTextboxSpec": {
               "lines": [
-                "# CandyOps: Allergy-Safe Halloween Candy"
+                "# candyops: Allergy-Safe Halloween Candy"
               ]
             }
           },

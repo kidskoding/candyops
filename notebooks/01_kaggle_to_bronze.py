@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # CandyOps 01: Kaggle to Bronze
+# MAGIC # candyops 01: Kaggle to Bronze
 # MAGIC
 # MAGIC Downloads two pinned public Kaggle datasets into a Unity Catalog volume and loads them, unchanged and as
 # MAGIC strings, into bronze Delta tables:
@@ -52,7 +52,7 @@ print(DATA_NOTICE)
 
 fqn(CATALOG, SCHEMA, VOLUME)  # validates identifiers before they reach SQL
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{CATALOG}`.`{SCHEMA}` "
-          "COMMENT 'CandyOps: Halloween candy and food allergies, from public Kaggle data'")
+          "COMMENT 'candyops: Halloween candy and food allergies, from public Kaggle data'")
 spark.sql(f"CREATE VOLUME IF NOT EXISTS `{CATALOG}`.`{SCHEMA}`.`{VOLUME}`")
 
 off_path, ranking_path = download(f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/kagglehub")
