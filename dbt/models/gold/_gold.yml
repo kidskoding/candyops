@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: gold_candy_allergens
+    description: Allergen status per candy, from matched products with an ingredient list
+    tests:
+      - unique_combination: {arguments: {columns: [candy, allergen]}}
+    columns:
+      - name: status
+        tests:
+          - not_null
+          - accepted_values: {arguments: {values: [contains, varies, may_contain, not_listed, unknown]}}
+  - name: gold_candy_profile
+    description: One row per ranked candy (coins excluded) with popularity, sugar and allergen statuses
+    columns:
+      - name: candy
+        tests: [unique, not_null]
+  - name: gold_bowls
+    description: Top candies per restriction, ranked by popularity
+    tests:
+      - unique_combination: {arguments: {columns: [restriction, bowl_rank]}}
+  - name: gold_bowl_summary
+    description: One row per restriction with the share of the best bowl's popularity it keeps
+    columns:
+      - name: restriction
+        tests: [unique, not_null]
+      - name: popularity_kept_pct
+        tests: [not_null, {value_between: {arguments: {min: 0, max: 100}}}]
+  - name: gold_match_methods
+    description: Name-only matching versus the curated rules
+  - name: gold_data_quality
+    description: Row counts and gaps found while cleaning
