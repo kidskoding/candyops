@@ -225,6 +225,29 @@ def sensitivity(summary: list[dict], base="S3_TRANSFER", test="S3B_TRANSFER_EARL
              "verdict": verdict}]
 
 
+def sweep_table(inputs: Inputs, results: dict[str, ScenarioResult]) -> list[dict]:
+    """One row per sweep run. `results` must also hold S1 so 'extra bags vs S1' has a base."""
+    orders = order_fulfillment(inputs, results)
+    exposure = seasonal_exposure(inputs, results)
+    _, primary = constraint_diagnostics(inputs, results)
+    keep = ("scenario_id", "orders_fully_ready", "bags_ready_on_time", "bags_short", "on_time_ready_rate_bags",
+            "incremental_cost_usd", "incremental_ready_bags_vs_s1", "cost_per_incremental_ready_bag_usd",
+            "overtime_runtime_hours", "alternate_runtime_hours", "transfer_bags_shipped", "primary_constraint")
+    rows = []
+    for s in scenario_summary(inputs, results, orders, exposure, primary):
+        sc = results[s["scenario_id"]].scenario
+        if sc.kind != "sweep":
+            continue
+        if sc.overtime_limit_override is not None:
+            name, value, numeric = "overtime_cap_hours", f"{sc.overtime_limit_override:g}", sc.overtime_limit_override
+        else:
+            day = min(d for _, d in sc.po_arrival_override)
+            name, value, numeric = "film_delivery_date", day.isoformat(), float((day - inputs.decision_date).days)
+        rows.append({"sweep_name": name, "option": sc.recovery, "param_value": value,
+                     "days_or_hours": numeric, **{k: s[k] for k in keep}})
+    return sorted(rows, key=lambda r: (r["sweep_name"], r["option"], r["days_or_hours"]))
+
+
 def gold_tables(inputs: Inputs, results: dict[str, ScenarioResult]) -> dict[str, list[dict]]:
     orders = order_fulfillment(inputs, results)
     exposure = seasonal_exposure(inputs, results)

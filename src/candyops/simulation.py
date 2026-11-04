@@ -73,10 +73,11 @@ class Scenario:
     scenario_id: str
     name: str
     description: str
-    kind: str  # reference | option | sensitivity
-    recovery: str | None = None  # None | overtime | transfer
+    kind: str  # reference | option | sensitivity | sweep
+    recovery: str | None = None  # None | overtime | transfer | overtime+transfer (planned in that order)
     include_breakdown: bool = True
     po_arrival_override: tuple = ()  # ((po_id, new_date), ...)
+    overtime_limit_override: float | None = None
 
 
 @dataclass
@@ -106,7 +107,26 @@ def default_scenarios(decision_date: date) -> list[Scenario]:
         Scenario("S3B_TRANSFER_EARLY_WRAPPERS", "Sensitivity: S3 with Southgate film delivered Oct 27",
                  "Same as S3, but Southgate's Halloween film purchase orders arrive on the decision date.",
                  "sensitivity", "transfer", po_arrival_override=tuple((p, decision_date) for p in SENSITIVITY_PO_IDS)),
+        Scenario("S4_OVERTIME_AND_TRANSFER", "Overtime at Northfield plus transfer from Southgate",
+                 "Plan overtime first, then cover what is still short with Southgate's idle hours.",
+                 "option", "overtime+transfer"),
     ]
+
+
+def sweep_scenarios(decision_date: date) -> list[Scenario]:
+    out = []
+    for offset in range(4):
+        day = decision_date + timedelta(days=offset)
+        override = tuple((p, day) for p in SENSITIVITY_PO_IDS)
+        for recovery, label in (("transfer", "TRANSFER"), ("overtime+transfer", "OT_TRANSFER")):
+            out.append(Scenario(f"SW_FILM_{day:%m%d}_{label}", f"Film delivered {day:%b %d}, {recovery}",
+                                "Sweep: Southgate Halloween film arrival date.", "sweep", recovery,
+                                po_arrival_override=override))
+    for hours in (0.0, 2.0, 4.0, 6.0, 8.0):
+        out.append(Scenario(f"SW_OTCAP_{int(hours)}H", f"Overtime cap {hours:g} h per line-day",
+                            "Sweep: overtime limit at Northfield.", "sweep", "overtime",
+                            overtime_limit_override=hours))
+    return out
 
 
 
@@ -409,15 +429,26 @@ def apply_po_override(inputs: Inputs, override: tuple) -> Inputs:
     return replace(inputs, purchase_orders=pos)
 
 
+def apply_overtime_override(inputs: Inputs, hours: float | None) -> Inputs:
+    if hours is None:
+        return inputs
+    cal = {k: (planned, hours if planned > 0 and k[1] >= inputs.decision_date else ot)
+           for k, (planned, ot) in inputs.calendar.items()}
+    return replace(inputs, calendar=cal)
+
+
 def run_scenario(inputs: Inputs, snapshot: State, history: Logs, sc: Scenario) -> ScenarioResult:
-    inp = apply_po_override(inputs, sc.po_arrival_override)
+    inp = apply_overtime_override(apply_po_override(inputs, sc.po_arrival_override), sc.overtime_limit_override)
     downtime = dict(inputs.downtime_minor)
     if sc.include_breakdown:
         for k, v in inputs.downtime_breakdown.items():
             downtime[k] = downtime.get(k, 0.0) + v
     baseline = [r for r in inp.plan_runs if r.date >= inp.decision_date]
-    recovery, slots = (plan_recovery(snapshot, inp, sc.recovery, baseline, downtime, sc.scenario_id)
-                       if sc.recovery else ([], []))
+    recovery, slots = [], []
+    for mode in (sc.recovery.split("+") if sc.recovery else []):
+        runs, mode_slots = plan_recovery(snapshot, inp, mode, baseline + recovery, downtime, sc.scenario_id)
+        recovery += runs
+        slots += mode_slots
     reserve = make_reserve(inp, baseline, downtime)
     state = copy.deepcopy(snapshot)
     start_fp = state.fingerprint()
