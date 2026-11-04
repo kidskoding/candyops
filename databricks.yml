@@ -9,8 +9,19 @@ variables:
   schema:
     description: Project schema (only bronze_*, silver_*, gold_* tables are written here)
     default: candyops
+  warehouse_id:
+    description: SQL warehouse that runs the dashboard queries
+    lookup:
+      warehouse: Serverless Starter Warehouse
 
 resources:
+  dashboards:
+    candyops_dashboard:
+      display_name: CandyOps - Halloween recovery (synthetic data)
+      file_path: ./dashboards/candyops.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${var.schema}
   jobs:
     candyops_pipeline:
       name: candyops-pipeline

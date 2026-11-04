@@ -1,0 +1,943 @@
+{
+  "datasets": [
+    {
+      "name": "ds_kpi",
+      "displayName": "Headline KPIs",
+      "queryLines": [
+        "SELECT\n",
+        "  MAX(CASE WHEN s.scenario_id = 'S1_NO_RECOVERY' THEN s.on_time_ready_rate_bags END) AS no_recovery_rate,\n",
+        "  MAX(CASE WHEN s.scenario_id = 'S1_NO_RECOVERY' THEN s.bags_short END) AS bags_at_risk,\n",
+        "  MAX(CASE WHEN s.scenario_id = 'S4_OVERTIME_AND_TRANSFER' THEN s.on_time_ready_rate_bags END) AS combined_rate,\n",
+        "  (SELECT MAX(on_time_ready_rate_bags) FROM gold_sweep\n",
+        "    WHERE sweep_name = 'film_delivery_date' AND option = 'overtime+transfer' AND param_value = '2026-10-28') AS combined_film_oct28_rate\n",
+        "FROM gold_scenario_summary s"
+      ]
+    },
+    {
+      "name": "ds_options",
+      "displayName": "Recovery options",
+      "queryLines": [
+        "SELECT\n",
+        "  CASE scenario_id\n",
+        "    WHEN 'S0_REFERENCE_NO_BREAKDOWN' THEN '0 No breakdown (reference)'\n",
+        "    WHEN 'S1_NO_RECOVERY' THEN '1 No recovery'\n",
+        "    WHEN 'S2_OVERTIME' THEN '2 Overtime'\n",
+        "    WHEN 'S3_TRANSFER' THEN '3 Transfer'\n",
+        "    WHEN 'S3B_TRANSFER_EARLY_WRAPPERS' THEN '3B Transfer, film Oct 27'\n",
+        "    WHEN 'S4_OVERTIME_AND_TRANSFER' THEN '4 Overtime + transfer'\n",
+        "  END AS option_label,\n",
+        "  scenario_id,\n",
+        "  bags_ready_on_time,\n",
+        "  on_time_ready_rate_bags,\n",
+        "  orders_fully_ready,\n",
+        "  incremental_cost_usd,\n",
+        "  incremental_ready_bags_vs_s1,\n",
+        "  cost_per_incremental_ready_bag_usd,\n",
+        "  primary_constraint\n",
+        "FROM gold_scenario_summary\n",
+        "ORDER BY option_label"
+      ]
+    },
+    {
+      "name": "ds_film",
+      "displayName": "Film delivery sweep",
+      "queryLines": [
+        "SELECT\n",
+        "  date_format(to_date(param_value), 'MMM d') AS film_arrives,\n",
+        "  days_or_hours,\n",
+        "  CASE option WHEN 'transfer' THEN 'Transfer only' ELSE 'Overtime + transfer' END AS option_label,\n",
+        "  bags_ready_on_time,\n",
+        "  on_time_ready_rate_bags,\n",
+        "  incremental_cost_usd\n",
+        "FROM gold_sweep\n",
+        "WHERE sweep_name = 'film_delivery_date'\n",
+        "ORDER BY days_or_hours"
+      ]
+    },
+    {
+      "name": "ds_otcap",
+      "displayName": "Overtime cap sweep",
+      "queryLines": [
+        "SELECT\n",
+        "  CONCAT(param_value, ' h') AS overtime_cap,\n",
+        "  days_or_hours,\n",
+        "  bags_ready_on_time,\n",
+        "  on_time_ready_rate_bags,\n",
+        "  incremental_cost_usd\n",
+        "FROM gold_sweep\n",
+        "WHERE sweep_name = 'overtime_cap_hours'\n",
+        "ORDER BY days_or_hours"
+      ]
+    },
+    {
+      "name": "ds_spare",
+      "displayName": "Southgate spare hours (transfer option)",
+      "queryLines": [
+        "SELECT\n",
+        "  date_format(`date`, 'MMM d') AS day,\n",
+        "  `date`,\n",
+        "  recovery_runtime_hours AS ran_hours,\n",
+        "  material_blocked_hours AS blocked_by_film_hours,\n",
+        "  CASE WHEN timing_eligible THEN unused_hours ELSE 0 END AS unused_hours,\n",
+        "  CASE WHEN timing_eligible THEN 0 ELSE spare_hours END AS too_late_hours\n",
+        "FROM gold_recovery_capacity\n",
+        "WHERE scenario_id = 'S3_TRANSFER' AND spare_hours > 0\n",
+        "ORDER BY `date`"
+      ]
+    },
+    {
+      "name": "ds_orders",
+      "displayName": "Orders at risk",
+      "queryLines": [
+        "SELECT\n",
+        "  order_id,\n",
+        "  customer_name,\n",
+        "  sku_id,\n",
+        "  date_format(ready_to_ship_deadline, 'MMM d') AS deadline,\n",
+        "  MAX(order_qty_bags) AS ordered,\n",
+        "  MAX(CASE WHEN scenario_id = 'S1_NO_RECOVERY' THEN ready_on_time_bags END) AS no_recovery,\n",
+        "  MAX(CASE WHEN scenario_id = 'S2_OVERTIME' THEN ready_on_time_bags END) AS overtime,\n",
+        "  MAX(CASE WHEN scenario_id = 'S3_TRANSFER' THEN ready_on_time_bags END) AS transfer,\n",
+        "  MAX(CASE WHEN scenario_id = 'S4_OVERTIME_AND_TRANSFER' THEN ready_on_time_bags END) AS overtime_and_transfer\n",
+        "FROM gold_order_fulfillment\n",
+        "WHERE order_id IN (SELECT order_id FROM gold_order_fulfillment\n",
+        "                   WHERE scenario_id = 'S1_NO_RECOVERY' AND at_risk_after_breakdown)\n",
+        "GROUP BY order_id, customer_name, sku_id, ready_to_ship_deadline\n",
+        "ORDER BY ready_to_ship_deadline, order_id"
+      ]
+    },
+    {
+      "name": "ds_checks",
+      "displayName": "Integrity checks",
+      "queryLines": [
+        "SELECT\n",
+        "  SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS checks_passed,\n",
+        "  COUNT(*) AS checks_total\n",
+        "FROM (SELECT status FROM silver_quality_checks UNION ALL SELECT status FROM gold_validation_results)"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "Halloween recovery",
+      "layout": [
+        {
+          "widget": {
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# CandyOps \u2014 one broken sealer, four days to Halloween\n",
+                "\n",
+                "On Oct 27 the main bag sealer at Northfield fails until Oct 29. Each option below is simulated day by day from the same Oct 27 state. **Spare line-hours were not the limit: Halloween bag film and truck timing were.** All data is synthetic; costs are modeled, not savings."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-no-recovery",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_kpi",
+                  "fields": [
+                    {
+                      "name": "no_recovery_rate",
+                      "expression": "`no_recovery_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "no_recovery_rate",
+                  "displayName": "Ready on time, no recovery",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ready on time, no recovery"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-combined",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_kpi",
+                  "fields": [
+                    {
+                      "name": "combined_rate",
+                      "expression": "`combined_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "combined_rate",
+                  "displayName": "Overtime + transfer",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Overtime + transfer"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-film",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_kpi",
+                  "fields": [
+                    {
+                      "name": "combined_film_oct28_rate",
+                      "expression": "`combined_film_oct28_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "combined_film_oct28_rate",
+                  "displayName": "\u2026 with film by Oct 28",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "\u2026 with film by Oct 28"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-checks",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_checks",
+                  "fields": [
+                    {
+                      "name": "checks_passed",
+                      "expression": "`checks_passed`"
+                    },
+                    {
+                      "name": "checks_total",
+                      "expression": "`checks_total`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "checks_passed",
+                  "displayName": "Integrity checks passed",
+                  "format": {
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{ @formatted }} of {{ checks_total }}"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Integrity checks passed"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "options-bags",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_options",
+                  "fields": [
+                    {
+                      "name": "option_label",
+                      "expression": "`option_label`"
+                    },
+                    {
+                      "name": "bags_ready_on_time",
+                      "expression": "`bags_ready_on_time`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "option_label",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "alphabetical"
+                    }
+                  },
+                  "displayName": "Option"
+                },
+                "y": {
+                  "fieldName": "bags_ready_on_time",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Bags ready on time",
+                  "format": {
+                    "type": "number",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Bags ready to ship on time, by option (188.5K ordered)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "options-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_options",
+                  "fields": [
+                    {
+                      "name": "option_label",
+                      "expression": "`option_label`"
+                    },
+                    {
+                      "name": "on_time_ready_rate_bags",
+                      "expression": "`on_time_ready_rate_bags`"
+                    },
+                    {
+                      "name": "orders_fully_ready",
+                      "expression": "`orders_fully_ready`"
+                    },
+                    {
+                      "name": "incremental_cost_usd",
+                      "expression": "`incremental_cost_usd`"
+                    },
+                    {
+                      "name": "cost_per_incremental_ready_bag_usd",
+                      "expression": "`cost_per_incremental_ready_bag_usd`"
+                    },
+                    {
+                      "name": "primary_constraint",
+                      "expression": "`primary_constraint`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "option_label",
+                    "displayName": "Option"
+                  },
+                  {
+                    "fieldName": "on_time_ready_rate_bags",
+                    "displayName": "Ready %",
+                    "format": {
+                      "type": "number-percent",
+                      "decimalPlaces": {
+                        "type": "max",
+                        "places": 1
+                      }
+                    }
+                  },
+                  {
+                    "fieldName": "orders_fully_ready",
+                    "displayName": "Orders ready (of 12)"
+                  },
+                  {
+                    "fieldName": "incremental_cost_usd",
+                    "displayName": "Extra cost",
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "USD",
+                      "abbreviation": "compact",
+                      "decimalPlaces": {
+                        "type": "max",
+                        "places": 1
+                      }
+                    }
+                  },
+                  {
+                    "fieldName": "cost_per_incremental_ready_bag_usd",
+                    "displayName": "$ per extra bag",
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "USD",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      }
+                    }
+                  },
+                  {
+                    "fieldName": "primary_constraint",
+                    "displayName": "What limited it"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Scorecard (modeled costs)"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "film-sweep",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_film",
+                  "fields": [
+                    {
+                      "name": "film_arrives",
+                      "expression": "`film_arrives`"
+                    },
+                    {
+                      "name": "days_or_hours",
+                      "expression": "`days_or_hours`"
+                    },
+                    {
+                      "name": "option_label",
+                      "expression": "`option_label`"
+                    },
+                    {
+                      "name": "bags_ready_on_time",
+                      "expression": "`bags_ready_on_time`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "film_arrives",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Oct 27",
+                        "Oct 28",
+                        "Oct 29",
+                        "Oct 30"
+                      ]
+                    }
+                  },
+                  "displayName": "Southgate film arrives"
+                },
+                "y": {
+                  "fieldName": "bags_ready_on_time",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Bags ready on time",
+                  "format": {
+                    "type": "number",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "option_label",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Overtime + transfer",
+                        "color": "#F97316"
+                      },
+                      {
+                        "value": "Transfer only",
+                        "color": "#7C3AED"
+                      }
+                    ]
+                  },
+                  "displayName": "Option"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "How late can the Halloween film arrive? (actual delivery: Oct 30)",
+                "showDescription": true,
+                "description": "Film by Oct 28 is enough; every day later costs bags."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "otcap-sweep",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_otcap",
+                  "fields": [
+                    {
+                      "name": "overtime_cap",
+                      "expression": "`overtime_cap`"
+                    },
+                    {
+                      "name": "days_or_hours",
+                      "expression": "`days_or_hours`"
+                    },
+                    {
+                      "name": "bags_ready_on_time",
+                      "expression": "`bags_ready_on_time`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "overtime_cap",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "0 h",
+                        "2 h",
+                        "4 h",
+                        "6 h",
+                        "8 h"
+                      ]
+                    }
+                  },
+                  "displayName": "Overtime cap per line-day"
+                },
+                "y": {
+                  "fieldName": "bags_ready_on_time",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Bags ready on time",
+                  "format": {
+                    "type": "number",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Overtime alone: roughly $0.53 per extra bag at every cap",
+                "showDescription": true,
+                "description": "8 h means running Northfield 24 hours a day."
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 12,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "spare-hours",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_spare",
+                  "fields": [
+                    {
+                      "name": "day",
+                      "expression": "`day`"
+                    },
+                    {
+                      "name": "date",
+                      "expression": "`date`"
+                    },
+                    {
+                      "name": "ran_hours",
+                      "expression": "`ran_hours`"
+                    },
+                    {
+                      "name": "blocked_by_film_hours",
+                      "expression": "`blocked_by_film_hours`"
+                    },
+                    {
+                      "name": "unused_hours",
+                      "expression": "`unused_hours`"
+                    },
+                    {
+                      "name": "too_late_hours",
+                      "expression": "`too_late_hours`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "day",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Oct 27",
+                        "Oct 28",
+                        "Oct 29",
+                        "Oct 30"
+                      ]
+                    }
+                  },
+                  "displayName": "Day"
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "ran_hours",
+                      "displayName": "Ran"
+                    },
+                    {
+                      "fieldName": "blocked_by_film_hours",
+                      "displayName": "Blocked: no film"
+                    },
+                    {
+                      "fieldName": "too_late_hours",
+                      "displayName": "Too late for any deadline"
+                    },
+                    {
+                      "fieldName": "unused_hours",
+                      "displayName": "Not needed"
+                    }
+                  ]
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Where Southgate's 48 spare line-hours went (transfer option)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "orders-at-risk",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_orders",
+                  "fields": [
+                    {
+                      "name": "order_id",
+                      "expression": "`order_id`"
+                    },
+                    {
+                      "name": "customer_name",
+                      "expression": "`customer_name`"
+                    },
+                    {
+                      "name": "sku_id",
+                      "expression": "`sku_id`"
+                    },
+                    {
+                      "name": "deadline",
+                      "expression": "`deadline`"
+                    },
+                    {
+                      "name": "ordered",
+                      "expression": "`ordered`"
+                    },
+                    {
+                      "name": "no_recovery",
+                      "expression": "`no_recovery`"
+                    },
+                    {
+                      "name": "overtime",
+                      "expression": "`overtime`"
+                    },
+                    {
+                      "name": "transfer",
+                      "expression": "`transfer`"
+                    },
+                    {
+                      "name": "overtime_and_transfer",
+                      "expression": "`overtime_and_transfer`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "order_id",
+                    "displayName": "Order"
+                  },
+                  {
+                    "fieldName": "customer_name",
+                    "displayName": "Retailer (fictional)"
+                  },
+                  {
+                    "fieldName": "sku_id",
+                    "displayName": "SKU"
+                  },
+                  {
+                    "fieldName": "deadline",
+                    "displayName": "Ready by"
+                  },
+                  {
+                    "fieldName": "ordered",
+                    "displayName": "Ordered"
+                  },
+                  {
+                    "fieldName": "no_recovery",
+                    "displayName": "No recovery"
+                  },
+                  {
+                    "fieldName": "overtime",
+                    "displayName": "Overtime"
+                  },
+                  {
+                    "fieldName": "transfer",
+                    "displayName": "Transfer"
+                  },
+                  {
+                    "fieldName": "overtime_and_transfer",
+                    "displayName": "OT + transfer"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "The 4 orders the breakdown puts at risk (bags ready on time)"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 18,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "footer",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Synthetic demo: fictional factories, retailers and costs; simulated ERP/MES/WMS/QMS exports. Ready to ship means bags allocated at the dispatch factory by the deadline day, not customer delivery. Every scenario and sweep point is also logged as an MLflow run (experiment candyops-scenarios)."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 24,
+            "width": 12,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#FBF7F2",
+        "dark": "#14101A"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FFFFFF",
+        "dark": "#1E1726"
+      },
+      "widgetBorderColor": {
+        "light": "#F1E6DA",
+        "dark": "#2A2133"
+      },
+      "fontColor": {
+        "light": "#1F1A24",
+        "dark": "#F3EDE4"
+      },
+      "selectionColor": {
+        "light": "#F97316",
+        "dark": "#FDBA74"
+      },
+      "visualizationColors": [
+        "#F97316",
+        "#7C3AED",
+        "#8B8B99",
+        "#FDBA74",
+        "#C4B5FD",
+        "#16A34A"
+      ],
+      "widgetHeaderAlignment": "LEFT"
+    }
+  }
+}
