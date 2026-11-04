@@ -2,134 +2,99 @@
   "datasets": [
     {
       "name": "ds_kpi",
-      "displayName": "Headline KPIs",
+      "displayName": "Headline numbers",
       "queryLines": [
         "SELECT\n",
-        "  MAX(CASE WHEN s.scenario_id = 'S1_NO_RECOVERY' THEN s.on_time_ready_rate_bags END) AS no_recovery_rate,\n",
-        "  MAX(CASE WHEN s.scenario_id = 'S1_NO_RECOVERY' THEN s.bags_short END) AS bags_at_risk,\n",
-        "  MAX(CASE WHEN s.scenario_id = 'S4_OVERTIME_AND_TRANSFER' THEN s.on_time_ready_rate_bags END) AS combined_rate,\n",
-        "  (SELECT MAX(on_time_ready_rate_bags) FROM gold_sweep\n",
-        "    WHERE sweep_name = 'film_delivery_date' AND option = 'overtime+transfer' AND param_value = '2026-10-28') AS combined_film_oct28_rate\n",
-        "FROM gold_scenario_summary s"
+        "  MAX(CASE WHEN metric = 'bronze_rows' THEN value END) AS products_scanned,\n",
+        "  MAX(CASE WHEN metric = 'duplicate_barcode_rows_dropped' THEN value END) AS duplicates_dropped,\n",
+        "  MAX(CASE WHEN metric = 'candies_with_enough_evidence' THEN value END) AS candies_with_evidence,\n",
+        "  MAX(CASE WHEN metric = 'ranked_candies' THEN value END) AS ranked_candies,\n",
+        "  (SELECT popularity_kept_pct / 100 FROM gold_bowl_summary WHERE restriction = 'peanut_free') AS peanut_free_kept\n",
+        "FROM gold_data_quality"
       ]
     },
     {
-      "name": "ds_options",
-      "displayName": "Recovery options",
+      "name": "ds_bowls",
+      "displayName": "Bowls by restriction",
       "queryLines": [
         "SELECT\n",
-        "  CASE scenario_id\n",
-        "    WHEN 'S0_REFERENCE_NO_BREAKDOWN' THEN '0 No breakdown (reference)'\n",
-        "    WHEN 'S1_NO_RECOVERY' THEN '1 No recovery'\n",
-        "    WHEN 'S2_OVERTIME' THEN '2 Overtime'\n",
-        "    WHEN 'S3_TRANSFER' THEN '3 Transfer'\n",
-        "    WHEN 'S3B_TRANSFER_EARLY_WRAPPERS' THEN '3B Transfer, film Oct 27'\n",
-        "    WHEN 'S4_OVERTIME_AND_TRANSFER' THEN '4 Overtime + transfer'\n",
-        "  END AS option_label,\n",
-        "  scenario_id,\n",
-        "  bags_ready_on_time,\n",
-        "  on_time_ready_rate_bags,\n",
-        "  orders_fully_ready,\n",
-        "  incremental_cost_usd,\n",
-        "  incremental_ready_bags_vs_s1,\n",
-        "  cost_per_incremental_ready_bag_usd,\n",
-        "  primary_constraint\n",
-        "FROM gold_scenario_summary\n",
-        "ORDER BY option_label"
+        "  CASE restriction\n",
+        "    WHEN 'no_restriction' THEN '1 No restriction'\n",
+        "    WHEN 'peanut_free' THEN '2 Peanut-free'\n",
+        "    WHEN 'nut_free' THEN '3 Nut-free'\n",
+        "    WHEN 'milk_free' THEN '4 Milk-free'\n",
+        "    WHEN 'gluten_free' THEN '5 Gluten-free'\n",
+        "    WHEN 'free_of_all_six' THEN '6 Free of all six'\n",
+        "  END AS restriction_label,\n",
+        "  candies_allowed,\n",
+        "  avg_win_percent,\n",
+        "  popularity_kept_pct / 100 AS popularity_kept,\n",
+        "  median_sugars_100g,\n",
+        "  bowl\n",
+        "FROM gold_bowl_summary\n",
+        "ORDER BY restriction_label"
       ]
     },
     {
-      "name": "ds_film",
-      "displayName": "Film delivery sweep",
+      "name": "ds_candies",
+      "displayName": "Candy profiles",
       "queryLines": [
         "SELECT\n",
-        "  date_format(to_date(param_value), 'MMM d') AS film_arrives,\n",
-        "  days_or_hours,\n",
-        "  CASE option WHEN 'transfer' THEN 'Transfer only' ELSE 'Overtime + transfer' END AS option_label,\n",
-        "  bags_ready_on_time,\n",
-        "  on_time_ready_rate_bags,\n",
-        "  incremental_cost_usd\n",
-        "FROM gold_sweep\n",
-        "WHERE sweep_name = 'film_delivery_date'\n",
-        "ORDER BY days_or_hours"
+        "  popularity_rank,\n",
+        "  candy,\n",
+        "  win_percent / 100 AS win_rate,\n",
+        "  n_products,\n",
+        "  n_evidence,\n",
+        "  evidence_scope,\n",
+        "  peanut,\n",
+        "  tree_nut,\n",
+        "  milk,\n",
+        "  gluten,\n",
+        "  soy,\n",
+        "  egg,\n",
+        "  sugars_100g\n",
+        "FROM gold_candy_profile\n",
+        "ORDER BY popularity_rank, candy"
       ]
     },
     {
-      "name": "ds_otcap",
-      "displayName": "Overtime cap sweep",
+      "name": "ds_methods",
+      "displayName": "Matching methods",
       "queryLines": [
         "SELECT\n",
-        "  CONCAT(param_value, ' h') AS overtime_cap,\n",
-        "  days_or_hours,\n",
-        "  bags_ready_on_time,\n",
-        "  on_time_ready_rate_bags,\n",
-        "  incremental_cost_usd\n",
-        "FROM gold_sweep\n",
-        "WHERE sweep_name = 'overtime_cap_hours'\n",
-        "ORDER BY days_or_hours"
+        "  CASE method WHEN 'naive' THEN 'Name only' ELSE 'Curated rules' END AS method_label,\n",
+        "  candies_matched,\n",
+        "  candies_total,\n",
+        "  products_matched,\n",
+        "  us_products_matched,\n",
+        "  non_candy_products\n",
+        "FROM gold_match_methods\n",
+        "ORDER BY method_label DESC"
       ]
     },
     {
-      "name": "ds_spare",
-      "displayName": "Southgate spare hours (transfer option)",
+      "name": "ds_quality",
+      "displayName": "Data quality",
       "queryLines": [
-        "SELECT\n",
-        "  date_format(`date`, 'MMM d') AS day,\n",
-        "  `date`,\n",
-        "  recovery_runtime_hours AS ran_hours,\n",
-        "  material_blocked_hours AS blocked_by_film_hours,\n",
-        "  CASE WHEN timing_eligible THEN unused_hours ELSE 0 END AS unused_hours,\n",
-        "  CASE WHEN timing_eligible THEN 0 ELSE spare_hours END AS too_late_hours\n",
-        "FROM gold_recovery_capacity\n",
-        "WHERE scenario_id = 'S3_TRANSFER' AND spare_hours > 0\n",
-        "ORDER BY `date`"
-      ]
-    },
-    {
-      "name": "ds_orders",
-      "displayName": "Orders at risk",
-      "queryLines": [
-        "SELECT\n",
-        "  order_id,\n",
-        "  customer_name,\n",
-        "  sku_id,\n",
-        "  date_format(ready_to_ship_deadline, 'MMM d') AS deadline,\n",
-        "  MAX(order_qty_bags) AS ordered,\n",
-        "  MAX(CASE WHEN scenario_id = 'S1_NO_RECOVERY' THEN ready_on_time_bags END) AS no_recovery,\n",
-        "  MAX(CASE WHEN scenario_id = 'S2_OVERTIME' THEN ready_on_time_bags END) AS overtime,\n",
-        "  MAX(CASE WHEN scenario_id = 'S3_TRANSFER' THEN ready_on_time_bags END) AS transfer,\n",
-        "  MAX(CASE WHEN scenario_id = 'S4_OVERTIME_AND_TRANSFER' THEN ready_on_time_bags END) AS overtime_and_transfer\n",
-        "FROM gold_order_fulfillment\n",
-        "WHERE order_id IN (SELECT order_id FROM gold_order_fulfillment\n",
-        "                   WHERE scenario_id = 'S1_NO_RECOVERY' AND at_risk_after_breakdown)\n",
-        "GROUP BY order_id, customer_name, sku_id, ready_to_ship_deadline\n",
-        "ORDER BY ready_to_ship_deadline, order_id"
-      ]
-    },
-    {
-      "name": "ds_checks",
-      "displayName": "Integrity checks",
-      "queryLines": [
-        "SELECT\n",
-        "  SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS checks_passed,\n",
-        "  COUNT(*) AS checks_total\n",
-        "FROM (SELECT status FROM silver_quality_checks UNION ALL SELECT status FROM gold_validation_results)"
+        "SELECT sort_order, replace(metric, '_', ' ') AS metric, value\n",
+        "FROM gold_data_quality\n",
+        "ORDER BY sort_order"
       ]
     }
   ],
   "pages": [
     {
       "name": "overview",
-      "displayName": "Halloween recovery",
+      "displayName": "Candy and allergies",
       "layout": [
         {
           "widget": {
             "name": "header",
             "multilineTextboxSpec": {
               "lines": [
-                "# CandyOps \u2014 one broken sealer, four days to Halloween\n",
+                "# CandyOps: which Halloween candy can every kid eat?\n",
                 "\n",
-                "On Oct 27 the main bag sealer at Northfield fails until Oct 29. Each option below is simulated day by day from the same Oct 27 state. **Spare line-hours were not the limit: Halloween bag film and truck timing were.** All data is synthetic; costs are modeled, not savings."
+                "Popularity comes from 269,000 head-to-head votes (FiveThirtyEight). Allergens come from 356,001 crowdsourced Open Food Facts products, cleaned and matched with dbt. Each bowl is the 10 most popular candies whose labels list none of the restricted allergens."
               ]
             }
           },
@@ -142,7 +107,7 @@
         },
         {
           "widget": {
-            "name": "kpi-no-recovery",
+            "name": "kpi-products",
             "queries": [
               {
                 "name": "main_query",
@@ -150,8 +115,8 @@
                   "datasetName": "ds_kpi",
                   "fields": [
                     {
-                      "name": "no_recovery_rate",
-                      "expression": "`no_recovery_rate`"
+                      "name": "products_scanned",
+                      "expression": "`products_scanned`"
                     }
                   ],
                   "disaggregated": true
@@ -163,10 +128,11 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "no_recovery_rate",
-                  "displayName": "Ready on time, no recovery",
+                  "fieldName": "products_scanned",
+                  "displayName": "Products scanned",
                   "format": {
-                    "type": "number-percent",
+                    "type": "number",
+                    "abbreviation": "compact",
                     "decimalPlaces": {
                       "type": "max",
                       "places": 1
@@ -176,7 +142,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Ready on time, no recovery"
+                "title": "Products scanned"
               }
             }
           },
@@ -189,7 +155,7 @@
         },
         {
           "widget": {
-            "name": "kpi-combined",
+            "name": "kpi-duplicates",
             "queries": [
               {
                 "name": "main_query",
@@ -197,8 +163,8 @@
                   "datasetName": "ds_kpi",
                   "fields": [
                     {
-                      "name": "combined_rate",
-                      "expression": "`combined_rate`"
+                      "name": "duplicates_dropped",
+                      "expression": "`duplicates_dropped`"
                     }
                   ],
                   "disaggregated": true
@@ -210,20 +176,16 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "combined_rate",
-                  "displayName": "Overtime + transfer",
+                  "fieldName": "duplicates_dropped",
+                  "displayName": "Duplicate barcodes dropped",
                   "format": {
-                    "type": "number-percent",
-                    "decimalPlaces": {
-                      "type": "max",
-                      "places": 1
-                    }
+                    "type": "number-plain"
                   }
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Overtime + transfer"
+                "title": "Duplicate barcodes dropped"
               }
             }
           },
@@ -236,7 +198,7 @@
         },
         {
           "widget": {
-            "name": "kpi-film",
+            "name": "kpi-evidence",
             "queries": [
               {
                 "name": "main_query",
@@ -244,8 +206,12 @@
                   "datasetName": "ds_kpi",
                   "fields": [
                     {
-                      "name": "combined_film_oct28_rate",
-                      "expression": "`combined_film_oct28_rate`"
+                      "name": "candies_with_evidence",
+                      "expression": "`candies_with_evidence`"
+                    },
+                    {
+                      "name": "ranked_candies",
+                      "expression": "`ranked_candies`"
                     }
                   ],
                   "disaggregated": true
@@ -257,20 +223,17 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "combined_film_oct28_rate",
-                  "displayName": "\u2026 with film by Oct 28",
+                  "fieldName": "candies_with_evidence",
+                  "displayName": "Candies with allergen evidence",
                   "format": {
-                    "type": "number-percent",
-                    "decimalPlaces": {
-                      "type": "max",
-                      "places": 1
-                    }
-                  }
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{ @formatted }} of {{ ranked_candies }}"
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "\u2026 with film by Oct 28"
+                "title": "Candies with allergen evidence"
               }
             }
           },
@@ -283,20 +246,16 @@
         },
         {
           "widget": {
-            "name": "kpi-checks",
+            "name": "kpi-peanut",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "ds_checks",
+                  "datasetName": "ds_kpi",
                   "fields": [
                     {
-                      "name": "checks_passed",
-                      "expression": "`checks_passed`"
-                    },
-                    {
-                      "name": "checks_total",
-                      "expression": "`checks_total`"
+                      "name": "peanut_free_kept",
+                      "expression": "`peanut_free_kept`"
                     }
                   ],
                   "disaggregated": true
@@ -308,17 +267,20 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "checks_passed",
-                  "displayName": "Integrity checks passed",
+                  "fieldName": "peanut_free_kept",
+                  "displayName": "Peanut-free bowl keeps",
                   "format": {
-                    "type": "number-plain"
-                  },
-                  "formatTemplate": "{{ @formatted }} of {{ checks_total }}"
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Integrity checks passed"
+                "title": "Peanut-free bowl keeps"
               }
             }
           },
@@ -331,20 +293,20 @@
         },
         {
           "widget": {
-            "name": "options-bags",
+            "name": "kept-by-restriction",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "ds_options",
+                  "datasetName": "ds_bowls",
                   "fields": [
                     {
-                      "name": "option_label",
-                      "expression": "`option_label`"
+                      "name": "restriction_label",
+                      "expression": "`restriction_label`"
                     },
                     {
-                      "name": "bags_ready_on_time",
-                      "expression": "`bags_ready_on_time`"
+                      "name": "popularity_kept",
+                      "expression": "`popularity_kept`"
                     }
                   ],
                   "disaggregated": true
@@ -356,24 +318,23 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "option_label",
+                  "fieldName": "restriction_label",
                   "scale": {
                     "type": "categorical",
                     "sort": {
                       "by": "alphabetical"
                     }
                   },
-                  "displayName": "Option"
+                  "displayName": "Restriction"
                 },
                 "y": {
-                  "fieldName": "bags_ready_on_time",
+                  "fieldName": "popularity_kept",
                   "scale": {
                     "type": "quantitative"
                   },
-                  "displayName": "Bags ready on time",
+                  "displayName": "Popularity kept",
                   "format": {
-                    "type": "number",
-                    "abbreviation": "compact",
+                    "type": "number-percent",
                     "decimalPlaces": {
                       "type": "max",
                       "places": 1
@@ -386,7 +347,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Bags ready to ship on time, by option (188.5K ordered)"
+                "title": "How much of the best bowl's popularity each restriction keeps"
               }
             }
           },
@@ -399,36 +360,28 @@
         },
         {
           "widget": {
-            "name": "options-table",
+            "name": "bowls",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "ds_options",
+                  "datasetName": "ds_bowls",
                   "fields": [
                     {
-                      "name": "option_label",
-                      "expression": "`option_label`"
+                      "name": "restriction_label",
+                      "expression": "`restriction_label`"
                     },
                     {
-                      "name": "on_time_ready_rate_bags",
-                      "expression": "`on_time_ready_rate_bags`"
+                      "name": "candies_allowed",
+                      "expression": "`candies_allowed`"
                     },
                     {
-                      "name": "orders_fully_ready",
-                      "expression": "`orders_fully_ready`"
+                      "name": "popularity_kept",
+                      "expression": "`popularity_kept`"
                     },
                     {
-                      "name": "incremental_cost_usd",
-                      "expression": "`incremental_cost_usd`"
-                    },
-                    {
-                      "name": "cost_per_incremental_ready_bag_usd",
-                      "expression": "`cost_per_incremental_ready_bag_usd`"
-                    },
-                    {
-                      "name": "primary_constraint",
-                      "expression": "`primary_constraint`"
+                      "name": "bowl",
+                      "expression": "`bowl`"
                     }
                   ],
                   "disaggregated": true
@@ -441,12 +394,16 @@
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "option_label",
-                    "displayName": "Option"
+                    "fieldName": "restriction_label",
+                    "displayName": "Restriction"
                   },
                   {
-                    "fieldName": "on_time_ready_rate_bags",
-                    "displayName": "Ready %",
+                    "fieldName": "candies_allowed",
+                    "displayName": "Candies allowed"
+                  },
+                  {
+                    "fieldName": "popularity_kept",
+                    "displayName": "Popularity kept",
                     "format": {
                       "type": "number-percent",
                       "decimalPlaces": {
@@ -456,43 +413,14 @@
                     }
                   },
                   {
-                    "fieldName": "orders_fully_ready",
-                    "displayName": "Orders ready (of 12)"
-                  },
-                  {
-                    "fieldName": "incremental_cost_usd",
-                    "displayName": "Extra cost",
-                    "format": {
-                      "type": "number-currency",
-                      "currencyCode": "USD",
-                      "abbreviation": "compact",
-                      "decimalPlaces": {
-                        "type": "max",
-                        "places": 1
-                      }
-                    }
-                  },
-                  {
-                    "fieldName": "cost_per_incremental_ready_bag_usd",
-                    "displayName": "$ per extra bag",
-                    "format": {
-                      "type": "number-currency",
-                      "currencyCode": "USD",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 2
-                      }
-                    }
-                  },
-                  {
-                    "fieldName": "primary_constraint",
-                    "displayName": "What limited it"
+                    "fieldName": "bowl",
+                    "displayName": "Top 10, most popular first"
                   }
                 ]
               },
               "frame": {
                 "showTitle": true,
-                "title": "Scorecard (modeled costs)"
+                "title": "The bowls"
               }
             }
           },
@@ -505,325 +433,64 @@
         },
         {
           "widget": {
-            "name": "film-sweep",
+            "name": "candies",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "ds_film",
+                  "datasetName": "ds_candies",
                   "fields": [
                     {
-                      "name": "film_arrives",
-                      "expression": "`film_arrives`"
+                      "name": "popularity_rank",
+                      "expression": "`popularity_rank`"
                     },
                     {
-                      "name": "days_or_hours",
-                      "expression": "`days_or_hours`"
+                      "name": "candy",
+                      "expression": "`candy`"
                     },
                     {
-                      "name": "option_label",
-                      "expression": "`option_label`"
+                      "name": "win_rate",
+                      "expression": "`win_rate`"
                     },
                     {
-                      "name": "bags_ready_on_time",
-                      "expression": "`bags_ready_on_time`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "widgetType": "line",
-              "encodings": {
-                "x": {
-                  "fieldName": "film_arrives",
-                  "scale": {
-                    "type": "categorical",
-                    "sort": {
-                      "by": "custom-order",
-                      "orderedValues": [
-                        "Oct 27",
-                        "Oct 28",
-                        "Oct 29",
-                        "Oct 30"
-                      ]
-                    }
-                  },
-                  "displayName": "Southgate film arrives"
-                },
-                "y": {
-                  "fieldName": "bags_ready_on_time",
-                  "scale": {
-                    "type": "quantitative"
-                  },
-                  "displayName": "Bags ready on time",
-                  "format": {
-                    "type": "number",
-                    "abbreviation": "compact",
-                    "decimalPlaces": {
-                      "type": "max",
-                      "places": 1
-                    }
-                  }
-                },
-                "color": {
-                  "fieldName": "option_label",
-                  "scale": {
-                    "type": "categorical",
-                    "mappings": [
-                      {
-                        "value": "Overtime + transfer",
-                        "color": "#F97316"
-                      },
-                      {
-                        "value": "Transfer only",
-                        "color": "#7C3AED"
-                      }
-                    ]
-                  },
-                  "displayName": "Option"
-                },
-                "label": {
-                  "show": true
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "How late can the Halloween film arrive? (actual delivery: Oct 30)",
-                "showDescription": true,
-                "description": "Film by Oct 28 is enough; every day later costs bags."
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 12,
-            "width": 6,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "otcap-sweep",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "ds_otcap",
-                  "fields": [
-                    {
-                      "name": "overtime_cap",
-                      "expression": "`overtime_cap`"
+                      "name": "n_products",
+                      "expression": "`n_products`"
                     },
                     {
-                      "name": "days_or_hours",
-                      "expression": "`days_or_hours`"
+                      "name": "n_evidence",
+                      "expression": "`n_evidence`"
                     },
                     {
-                      "name": "bags_ready_on_time",
-                      "expression": "`bags_ready_on_time`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "widgetType": "bar",
-              "encodings": {
-                "x": {
-                  "fieldName": "overtime_cap",
-                  "scale": {
-                    "type": "categorical",
-                    "sort": {
-                      "by": "custom-order",
-                      "orderedValues": [
-                        "0 h",
-                        "2 h",
-                        "4 h",
-                        "6 h",
-                        "8 h"
-                      ]
-                    }
-                  },
-                  "displayName": "Overtime cap per line-day"
-                },
-                "y": {
-                  "fieldName": "bags_ready_on_time",
-                  "scale": {
-                    "type": "quantitative"
-                  },
-                  "displayName": "Bags ready on time",
-                  "format": {
-                    "type": "number",
-                    "abbreviation": "compact",
-                    "decimalPlaces": {
-                      "type": "max",
-                      "places": 1
-                    }
-                  }
-                },
-                "label": {
-                  "show": true
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Overtime alone: roughly $0.53 per extra bag at every cap",
-                "showDescription": true,
-                "description": "8 h means running Northfield 24 hours a day."
-              }
-            }
-          },
-          "position": {
-            "x": 6,
-            "y": 12,
-            "width": 6,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "spare-hours",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "ds_spare",
-                  "fields": [
-                    {
-                      "name": "day",
-                      "expression": "`day`"
+                      "name": "evidence_scope",
+                      "expression": "`evidence_scope`"
                     },
                     {
-                      "name": "date",
-                      "expression": "`date`"
+                      "name": "peanut",
+                      "expression": "`peanut`"
                     },
                     {
-                      "name": "ran_hours",
-                      "expression": "`ran_hours`"
+                      "name": "tree_nut",
+                      "expression": "`tree_nut`"
                     },
                     {
-                      "name": "blocked_by_film_hours",
-                      "expression": "`blocked_by_film_hours`"
+                      "name": "milk",
+                      "expression": "`milk`"
                     },
                     {
-                      "name": "unused_hours",
-                      "expression": "`unused_hours`"
+                      "name": "gluten",
+                      "expression": "`gluten`"
                     },
                     {
-                      "name": "too_late_hours",
-                      "expression": "`too_late_hours`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "widgetType": "bar",
-              "encodings": {
-                "x": {
-                  "fieldName": "day",
-                  "scale": {
-                    "type": "categorical",
-                    "sort": {
-                      "by": "custom-order",
-                      "orderedValues": [
-                        "Oct 27",
-                        "Oct 28",
-                        "Oct 29",
-                        "Oct 30"
-                      ]
-                    }
-                  },
-                  "displayName": "Day"
-                },
-                "y": {
-                  "scale": {
-                    "type": "quantitative"
-                  },
-                  "fields": [
-                    {
-                      "fieldName": "ran_hours",
-                      "displayName": "Ran"
+                      "name": "soy",
+                      "expression": "`soy`"
                     },
                     {
-                      "fieldName": "blocked_by_film_hours",
-                      "displayName": "Blocked: no film"
+                      "name": "egg",
+                      "expression": "`egg`"
                     },
                     {
-                      "fieldName": "too_late_hours",
-                      "displayName": "Too late for any deadline"
-                    },
-                    {
-                      "fieldName": "unused_hours",
-                      "displayName": "Not needed"
-                    }
-                  ]
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Where Southgate's 48 spare line-hours went (transfer option)"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 18,
-            "width": 6,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "orders-at-risk",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "ds_orders",
-                  "fields": [
-                    {
-                      "name": "order_id",
-                      "expression": "`order_id`"
-                    },
-                    {
-                      "name": "customer_name",
-                      "expression": "`customer_name`"
-                    },
-                    {
-                      "name": "sku_id",
-                      "expression": "`sku_id`"
-                    },
-                    {
-                      "name": "deadline",
-                      "expression": "`deadline`"
-                    },
-                    {
-                      "name": "ordered",
-                      "expression": "`ordered`"
-                    },
-                    {
-                      "name": "no_recovery",
-                      "expression": "`no_recovery`"
-                    },
-                    {
-                      "name": "overtime",
-                      "expression": "`overtime`"
-                    },
-                    {
-                      "name": "transfer",
-                      "expression": "`transfer`"
-                    },
-                    {
-                      "name": "overtime_and_transfer",
-                      "expression": "`overtime_and_transfer`"
+                      "name": "sugars_100g",
+                      "expression": "`sugars_100g`"
                     }
                   ],
                   "disaggregated": true
@@ -836,52 +503,207 @@
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "order_id",
-                    "displayName": "Order"
+                    "fieldName": "popularity_rank",
+                    "displayName": "Rank"
                   },
                   {
-                    "fieldName": "customer_name",
-                    "displayName": "Retailer (fictional)"
+                    "fieldName": "candy",
+                    "displayName": "Candy"
                   },
                   {
-                    "fieldName": "sku_id",
-                    "displayName": "SKU"
+                    "fieldName": "win_rate",
+                    "displayName": "Wins",
+                    "format": {
+                      "type": "number-percent",
+                      "decimalPlaces": {
+                        "type": "max",
+                        "places": 1
+                      }
+                    }
                   },
                   {
-                    "fieldName": "deadline",
-                    "displayName": "Ready by"
+                    "fieldName": "n_products",
+                    "displayName": "Products matched"
                   },
                   {
-                    "fieldName": "ordered",
-                    "displayName": "Ordered"
+                    "fieldName": "n_evidence",
+                    "displayName": "With ingredients"
                   },
                   {
-                    "fieldName": "no_recovery",
-                    "displayName": "No recovery"
+                    "fieldName": "evidence_scope",
+                    "displayName": "Evidence from"
                   },
                   {
-                    "fieldName": "overtime",
-                    "displayName": "Overtime"
+                    "fieldName": "peanut",
+                    "displayName": "Peanut"
                   },
                   {
-                    "fieldName": "transfer",
-                    "displayName": "Transfer"
+                    "fieldName": "tree_nut",
+                    "displayName": "Tree nut"
                   },
                   {
-                    "fieldName": "overtime_and_transfer",
-                    "displayName": "OT + transfer"
+                    "fieldName": "milk",
+                    "displayName": "Milk"
+                  },
+                  {
+                    "fieldName": "gluten",
+                    "displayName": "Gluten"
+                  },
+                  {
+                    "fieldName": "soy",
+                    "displayName": "Soy"
+                  },
+                  {
+                    "fieldName": "egg",
+                    "displayName": "Egg"
+                  },
+                  {
+                    "fieldName": "sugars_100g",
+                    "displayName": "Sugar g/100g"
                   }
                 ]
               },
               "frame": {
                 "showTitle": true,
-                "title": "The 4 orders the breakdown puts at risk (bags ready on time)"
+                "title": "Every ranked candy (contains / varies / may_contain block a bowl; unknown means no ingredient list was found)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 12,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "methods",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_methods",
+                  "fields": [
+                    {
+                      "name": "method_label",
+                      "expression": "`method_label`"
+                    },
+                    {
+                      "name": "candies_matched",
+                      "expression": "`candies_matched`"
+                    },
+                    {
+                      "name": "products_matched",
+                      "expression": "`products_matched`"
+                    },
+                    {
+                      "name": "us_products_matched",
+                      "expression": "`us_products_matched`"
+                    },
+                    {
+                      "name": "non_candy_products",
+                      "expression": "`non_candy_products`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "method_label",
+                    "displayName": "Method"
+                  },
+                  {
+                    "fieldName": "candies_matched",
+                    "displayName": "Candies matched"
+                  },
+                  {
+                    "fieldName": "products_matched",
+                    "displayName": "Products matched"
+                  },
+                  {
+                    "fieldName": "us_products_matched",
+                    "displayName": "US products"
+                  },
+                  {
+                    "fieldName": "non_candy_products",
+                    "displayName": "Not candy (creamer, ice cream...)"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Matching on the name alone vs curated rules"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "quality",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_quality",
+                  "fields": [
+                    {
+                      "name": "metric",
+                      "expression": "`metric`"
+                    },
+                    {
+                      "name": "value",
+                      "expression": "`value`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "metric",
+                    "displayName": "Check"
+                  },
+                  {
+                    "fieldName": "value",
+                    "displayName": "Rows",
+                    "format": {
+                      "type": "number",
+                      "abbreviation": "compact",
+                      "decimalPlaces": {
+                        "type": "max",
+                        "places": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "What cleaning found"
               }
             }
           },
           "position": {
             "x": 6,
-            "y": 18,
+            "y": 21,
             "width": 6,
             "height": 6
           }
@@ -891,13 +713,13 @@
             "name": "footer",
             "multilineTextboxSpec": {
               "lines": [
-                "Synthetic demo: fictional factories, retailers and costs; simulated ERP/MES/WMS/QMS exports. Ready to ship means bags allocated at the dispatch factory by the deadline day, not customer delivery. Every scenario and sweep point is also logged as an MLflow run (experiment candyops-scenarios)."
+                "Data: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle. Allergen flags are parsed from crowdsourced ingredient lists, are not medical advice, and can be out of date: always read the package label. Each bowl and matching method is also logged to MLflow (experiment candyops-candy-bowls)."
               ]
             }
           },
           "position": {
             "x": 0,
-            "y": 24,
+            "y": 27,
             "width": 12,
             "height": 2
           }
