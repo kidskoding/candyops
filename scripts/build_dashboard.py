@@ -347,11 +347,9 @@ LAYOUT = [
                                                      ("candies_allowed", "Eligible candies", None),
                                                      ("popularity_kept", "Popularity retained", PCT),
                                                      ("bowl", "Top 10, most popular first", None)], 0, 47, 12, 5),
-    table("candies", "ds_candies", "Allergen status of every ranked candy",
+    table("candies", "ds_candies", "Evidence behind every ranked candy",
           [("popularity_rank", "Rank", None), ("candy", "Candy", None), ("win_rate", "Win rate", PCT),
-           ("n_products", "Products matched", None), ("n_evidence", "With ingredients", None),
-           ("evidence_scope", "Evidence source", None), ("peanut", "Peanut", None), ("tree_nut", "Tree nut", None),
-           ("milk", "Milk", None), ("gluten", "Gluten", None), ("soy", "Soy", None), ("egg", "Egg", None),
+           ("n_evidence", "Labels with ingredients", None), ("evidence_scope", "Evidence source", None),
            ("sugars_100g", "Sugar (g/100 g)", None)], 0, 52, 12, 8, STATUS),
     table("quality", "ds_quality", "Data-cleaning results", [("metric", "Check", None), ("value", "Rows", CNT)],
           0, 60, 12, 5),
@@ -361,6 +359,42 @@ LAYOUT = [
                     "the package label. Each bowl and matching method is logged to the MLflow experiment "
                     "candyops-candy-bowls."], 0, 65, 12, 2),
 ]
+
+# Each section pairs a chart with the table or notes that explain it, instead of stacking every table at the end.
+# shortcut: these numbers are typed in, not queried; rerun scripts/build_figures.py and update them if the data changes.
+FINDINGS = text("findings", [
+    "## What the data shows\n", "\n",
+    "- **9 of the 10** most popular candies with label data list at least 3 of the 6 major allergens.\n",
+    "- Candies with none average a **45%** win rate. Candies with 5 or more average **66%**.\n",
+    "- **Skittles** is the most popular candy with none of the six.\n",
+    "- Chocolate drives the pattern: it almost always contains milk and soy, so allergy-safe bowls are fruit candy.\n",
+], 0, 0, 0, 0)
+SECTIONS = [
+    text("section-bowls", ["## The bowls: what an allergy costs"], 0, 0, 0, 0),
+    text("section-candies", ["## Every candy: allergen status and evidence"], 0, 0, 0, 0),
+    text("section-changes", ["## Is the 2017 answer still true?"], 0, 0, 0, 0),
+    text("section-cleaning", ["## How the data was cleaned and matched"], 0, 0, 0, 0),
+]
+POSITIONS = {
+    "title": (0, 0, 12, 1), "subtitle": (0, 1, 12, 2),
+    "kpi-products": (0, 3, 3, 3), "kpi-evidence": (3, 3, 3, 3), "kpi-peanut": (6, 3, 3, 3), "kpi-changed": (9, 3, 3, 3),
+    "allergens-vs-popularity": (0, 6, 8, 9), "findings": (8, 6, 4, 9),
+    "section-bowls": (0, 15, 12, 1),
+    "kept-by-restriction": (0, 16, 5, 6), "bowls": (5, 16, 7, 6),
+    "chocolate-mix": (0, 22, 6, 6), "sugar-by-bowl": (6, 22, 6, 6),
+    "section-candies": (0, 28, 12, 1),
+    "allergen-heatmap": (0, 29, 7, 10), "candies": (7, 29, 5, 10),
+    "section-changes": (0, 39, 12, 1),
+    "change-outcomes": (0, 40, 4, 7), "changes": (4, 40, 8, 7),
+    "changes-by-allergen": (0, 47, 4, 6),
+    "section-cleaning": (4, 47, 8, 1),
+    "matching-methods": (4, 48, 4, 5), "quality": (8, 48, 4, 5),
+    "footer": (0, 53, 12, 2),
+}
+LAYOUT = LAYOUT + [FINDINGS] + SECTIONS
+for item in LAYOUT:
+    item["position"] = pos(*POSITIONS[item["widget"]["name"]])
+LAYOUT.sort(key=lambda item: (item["position"]["y"], item["position"]["x"]))
 
 DASH = {"datasets": DATASETS,
         "pages": [{"name": "overview", "displayName": "Candy and allergies", "layout": LAYOUT,
