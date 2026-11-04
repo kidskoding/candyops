@@ -132,6 +132,30 @@ FROM gold_label_changes
 WHERE comparison = 'changed'
 GROUP BY 1
 ORDER BY changes DESC""")},
+    {"name": "ds_allergen_popularity", "displayName": "Popularity versus allergens listed", "queryLines": ql("""
+SELECT
+  candy,
+  win_percent / 100 AS win_rate,
+  n_allergens,
+  -- spread candies with the same count side by side so the dots do not overlap
+  n_allergens + ((ROW_NUMBER() OVER (PARTITION BY n_allergens ORDER BY win_percent) % 4) - 1.5) * 0.11
+    AS allergens_listed,
+  CASE WHEN chocolate THEN 'Chocolate' ELSE 'Not chocolate' END AS candy_type
+FROM (
+  SELECT
+    candy,
+    win_percent,
+    chocolate,
+    CAST(peanut IN ('contains', 'varies', 'may_contain') AS INT)
+      + CAST(tree_nut IN ('contains', 'varies', 'may_contain') AS INT)
+      + CAST(milk IN ('contains', 'varies', 'may_contain') AS INT)
+      + CAST(gluten IN ('contains', 'varies', 'may_contain') AS INT)
+      + CAST(soy IN ('contains', 'varies', 'may_contain') AS INT)
+      + CAST(egg IN ('contains', 'varies', 'may_contain') AS INT) AS n_allergens
+  FROM gold_candy_profile
+  WHERE n_evidence >= 2
+)
+ORDER BY n_allergens, win_rate""")},
 ]
 
 PCT = {"type": "number-percent", "decimalPlaces": {"type": "max", "places": 1}}
@@ -236,27 +260,45 @@ LAYOUT = [
             "Candies with current data whose status changed",
             ("{{ @formatted }} of {{ candies_compared }}", "candies_compared")),
 
+    {"widget": {"name": "allergens-vs-popularity",
+                "queries": q("ds_allergen_popularity", ["allergens_listed", "win_rate", "candy_type"]),
+                "spec": {"version": 3, "widgetType": "scatter",
+                         "encodings": {
+                             "x": {"fieldName": "allergens_listed", "scale": {"type": "quantitative"},
+                                   "displayName": "Major allergens listed on the label (of 6)",
+                                   "format": {"type": "number", "decimalPlaces": {"type": "exact", "places": 0}}},
+                             "y": {"fieldName": "win_rate", "scale": {"type": "quantitative"},
+                                   "displayName": "Win rate in head-to-head votes", "format": PCT},
+                             "color": {"fieldName": "candy_type", "displayName": "Candy type",
+                                       "scale": {"type": "categorical", "mappings": [
+                                           {"value": "Chocolate", "color": "#EA580C"},
+                                           {"value": "Not chocolate", "color": "#8B5CF6"}]}}},
+                         "frame": frame("The candy kids love most is the candy allergic kids can't eat",
+                                        "Each dot is one of 59 candies with at least two labeled products. "
+                                        "Listed includes may-contain warnings.")}},
+     "position": pos(0, 6, 12, 8)},
+
     bar("kept-by-restriction", "ds_bowls", ("restriction_label", "Restriction", ORDERED),
         ("popularity_kept", "Popularity retained", {"format": PCT}),
         "Popularity retained by each restriction",
-        "Average win rate of each bowl compared with the unrestricted bowl", (0, 6, 6, 6),
+        "Average win rate of each bowl compared with the unrestricted bowl", (0, 14, 6, 6),
         color=by_restriction(BAR_COLORS)),
     bar("chocolate-mix", "ds_bowl_mix", ("restriction_label", "Restriction", ORDERED),
         ("candies", "Candies in the bowl", {}),
         "Chocolate disappears as restrictions are added",
-        "Chocolate and non-chocolate candies in each 10-candy bowl", (6, 6, 6, 6),
+        "Chocolate and non-chocolate candies in each 10-candy bowl", (6, 14, 6, 6),
         color={"fieldName": "candy_type", "displayName": "Candy type", "scale": {"type": "categorical", "mappings": [
             {"value": "Chocolate", "color": "#9A5B2E"}, {"value": "Non-chocolate", "color": ORANGE}]}}),
 
     bar("sugar-by-bowl", "ds_bowls", ("restriction_label", "Restriction", ORDERED),
         ("median_sugars_100g", "Median sugar (g per 100 g)", {}),
         "Allergy-safe bowls contain more sugar",
-        "Median sugar per 100 g in each bowl. Safe bowls rely on fruit candy instead of chocolate.", (0, 12, 6, 6),
+        "Median sugar per 100 g in each bowl. Safe bowls rely on fruit candy instead of chocolate.", (0, 20, 6, 6),
         color=by_restriction(SUGAR_COLORS)),
     bar("matching-methods", "ds_methods", ("method_label", "Method", {}),
         [("candies_matched", "Candies matched"), ("non_candy_products", "Non-candy products matched")],
         "Curated rules remove every false match",
-        "Matching on the name alone pulls in coffee creamer, ice cream and cereal", (6, 12, 6, 6),
+        "Matching on the name alone pulls in coffee creamer, ice cream and cereal", (6, 20, 6, 6),
         mark={"layout": "group"}),
 
     {"widget": {"name": "allergen-heatmap", "queries": q("ds_heatmap", ["allergen", "candy_label", "severity"]),
@@ -274,14 +316,14 @@ LAYOUT = [
                          "frame": frame("Allergen status of the 20 most popular candies",
                                         "0 not listed, 1 may contain, 2 varies by product, 3 contains. "
                                         "Blank cells have no matched ingredient list.")}},
-     "position": pos(0, 18, 12, 9)},
+     "position": pos(0, 26, 12, 9)},
 
     bar("change-outcomes", "ds_change_outcomes", ("outcome", "Outcome", {"sort": {"by": "custom-order",
                                                                                "orderedValues": OUTCOMES}}),
         ("candies", "Candies", {}),
         "Is the 2017 answer still true?",
         "Each candy's 2017 allergen status compared with products edited since the daily change feed started",
-        (0, 27, 6, 6),
+        (0, 35, 6, 6),
         color={"fieldName": "outcome", "displayName": "Outcome", "legend": NO_LEGEND,
                "scale": {"type": "categorical", "mappings": [
                    {"value": "Changed", "color": ORANGE}, {"value": "Unchanged", "color": PURPLE},
@@ -290,7 +332,7 @@ LAYOUT = [
                                                                 ["Peanut", "Tree nut", "Egg", "Soy", "Gluten", "Milk"]}}),
         ("changes", "Changed statuses", {}),
         "Which allergen statuses changed",
-        "Candy and allergen pairs whose status differs between 2017 and current labels", (6, 27, 6, 6),
+        "Candy and allergen pairs whose status differs between 2017 and current labels", (6, 35, 6, 6),
         color={"fieldName": "allergen_label", "displayName": "Allergen", "legend": NO_LEGEND,
                "scale": {"type": "categorical", "mappings": [
                    {"value": a, "color": ORANGE} for a in ["Peanut", "Tree nut", "Milk", "Gluten", "Soy", "Egg"]]}}),
@@ -298,26 +340,26 @@ LAYOUT = [
     table("changes", "ds_changes", "Allergen statuses that changed since 2017",
           [("candy", "Candy", None), ("allergen", "Allergen", None), ("status_2017", "2017 status", None),
            ("status_now", "Current status", None), ("evidence_2017", "2017 products", None),
-           ("evidence_now", "Current products", None), ("comparison_label", "Comparison", None)], 0, 33, 12, 6,
+           ("evidence_now", "Current products", None), ("comparison_label", "Comparison", None)], 0, 41, 12, 6,
           "From the Open Food Facts daily change feed, loaded incrementally. Only candies with at least two "
           "current products with ingredients are compared."),
     table("bowls", "ds_bowls", "Recommended bowls", [("restriction_label", "Restriction", None),
                                                      ("candies_allowed", "Eligible candies", None),
                                                      ("popularity_kept", "Popularity retained", PCT),
-                                                     ("bowl", "Top 10, most popular first", None)], 0, 39, 12, 5),
+                                                     ("bowl", "Top 10, most popular first", None)], 0, 47, 12, 5),
     table("candies", "ds_candies", "Allergen status of every ranked candy",
           [("popularity_rank", "Rank", None), ("candy", "Candy", None), ("win_rate", "Win rate", PCT),
            ("n_products", "Products matched", None), ("n_evidence", "With ingredients", None),
            ("evidence_scope", "Evidence source", None), ("peanut", "Peanut", None), ("tree_nut", "Tree nut", None),
            ("milk", "Milk", None), ("gluten", "Gluten", None), ("soy", "Soy", None), ("egg", "Egg", None),
-           ("sugars_100g", "Sugar (g/100 g)", None)], 0, 44, 12, 8, STATUS),
+           ("sugars_100g", "Sugar (g/100 g)", None)], 0, 52, 12, 8, STATUS),
     table("quality", "ds_quality", "Data-cleaning results", [("metric", "Check", None), ("value", "Rows", CNT)],
-          0, 52, 12, 5),
+          0, 60, 12, 5),
     text("footer", ["Sources: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 "
                     "snapshots from Kaggle, plus the Open Food Facts daily change feed. Allergen status is parsed "
                     "from crowdsourced ingredient lists, is not medical advice, and may be out of date. Always check "
                     "the package label. Each bowl and matching method is logged to the MLflow experiment "
-                    "candyops-candy-bowls."], 0, 57, 12, 2),
+                    "candyops-candy-bowls."], 0, 65, 12, 2),
 ]
 
 DASH = {"datasets": DATASETS,
