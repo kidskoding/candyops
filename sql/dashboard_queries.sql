@@ -36,6 +36,7 @@ SELECT
   MAX(CASE WHEN scenario_id = 'S1_NO_RECOVERY' THEN ROUND(on_time_ready_rate_bags * 100, 1) END)          AS no_recovery_ready_pct,
   MAX(CASE WHEN scenario_id = 'S2_OVERTIME' THEN ROUND(on_time_ready_rate_bags * 100, 1) END)             AS overtime_ready_pct,
   MAX(CASE WHEN scenario_id = 'S3_TRANSFER' THEN ROUND(on_time_ready_rate_bags * 100, 1) END)             AS transfer_ready_pct,
+  MAX(CASE WHEN scenario_id = 'S4_OVERTIME_AND_TRANSFER' THEN ROUND(on_time_ready_rate_bags * 100, 1) END) AS combined_ready_pct,
   MAX(CASE WHEN scenario_id = 'S1_NO_RECOVERY' THEN bags_short END)                                       AS bags_short_no_recovery
 FROM workspace.candyops.gold_scenario_summary;
 
@@ -193,3 +194,18 @@ FROM (
 )
 GROUP BY layer, status
 ORDER BY layer, status;
+
+
+-- ds12_sweeps : film delivery date and overtime cap sweeps (line chart: x = param_value, y = bags, color = option)
+SELECT
+  sweep_name,
+  option,
+  param_value,
+  days_or_hours,
+  bags_ready_on_time,
+  ROUND(on_time_ready_rate_bags * 100, 1) AS on_time_ready_pct,
+  incremental_cost_usd,
+  cost_per_incremental_ready_bag_usd,
+  primary_constraint
+FROM workspace.candyops.gold_sweep
+ORDER BY sweep_name, option, days_or_hours;
