@@ -26,6 +26,10 @@ resources:
     candyops_pipeline:
       name: candyops-pipeline
       max_concurrent_runs: 1
+      # daily, after Open Food Facts posts the previous day's change file (~06:30 UTC); paused in dev mode
+      schedule:
+        quartz_cron_expression: "0 0 8 * * ?"
+        timezone_id: UTC
       environments:
         - environment_key: dbt
           spec:
@@ -39,9 +43,16 @@ resources:
             base_parameters:
               catalog: ${var.catalog}
               schema: ${var.schema}
+        - task_key: change_feed_to_bronze
+          notebook_task:
+            notebook_path: ./notebooks/01b_change_feed_to_bronze.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
         - task_key: dbt_build
           depends_on:
             - task_key: kaggle_to_bronze
+            - task_key: change_feed_to_bronze
           environment_key: dbt
           dbt_task:
             project_directory: ./dbt

@@ -61,7 +61,10 @@ print(off_path, ranking_path, sep="\n")
 # COMMAND ----------
 
 
-def load(path, options, dataset, table):
+def load(path, options, dataset, table, expected_rows):
+    name = fqn(CATALOG, SCHEMA, table)
+    if spark.catalog.tableExists(name.replace("`", "")) and spark.table(name).count() == expected_rows:
+        return expected_rows  # pinned snapshot already loaded; the daily job skips the 1 GB reload
     df = (spark.read.options(**options).csv(path)
           .withColumn("_source_dataset", F.lit(dataset))
           .withColumn("_ingested_at", F.current_timestamp()))
@@ -69,7 +72,7 @@ def load(path, options, dataset, table):
     return spark.table(fqn(CATALOG, SCHEMA, table)).count()
 
 
-n_off = load(off_path, OFF_READ_OPTIONS, OFF_DATASET, "bronze_off_products")
-n_rank = load(ranking_path, RANKING_READ_OPTIONS, RANKING_DATASET, "bronze_candy_ranking")
+n_off = load(off_path, OFF_READ_OPTIONS, OFF_DATASET, "bronze_off_products", OFF_ROWS)
+n_rank = load(ranking_path, RANKING_READ_OPTIONS, RANKING_DATASET, "bronze_candy_ranking", RANKING_ROWS)
 print(f"bronze_off_products: {n_off:,} rows; bronze_candy_ranking: {n_rank} rows")
 assert (n_off, n_rank) == (OFF_ROWS, RANKING_ROWS), "row counts differ from the pinned Kaggle files"

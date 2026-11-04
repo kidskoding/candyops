@@ -17,3 +17,9 @@ DATA_NOTICE = (
     "Ranking (MIT), 2017 snapshots from Kaggle. Allergen flags are parsed from crowdsourced ingredient "
     "lists, are not medical advice, and can be out of date: always read the package label."
 )
+
+# Open Food Facts daily change feed: one file per day of changed products, kept upstream for about two weeks
+FEED_BASE_URL = "https://static.openfoodfacts.org/data/delta/"
+FEED_SCHEMA = ("code STRING, product_name STRING, brands STRING, countries_tags ARRAY<STRING>, "
+               "ingredients_text STRING, allergens_tags ARRAY<STRING>, traces_tags ARRAY<STRING>, "
+               "serving_size STRING, last_modified_t STRING, nutriments STRUCT<sugars_100g: STRING>")

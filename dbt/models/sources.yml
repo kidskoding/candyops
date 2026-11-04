@@ -9,3 +9,7 @@ sources:
         description: Open Food Facts world-food-facts v5 (ODbL), all 163 columns
       - name: bronze_candy_ranking
         description: FiveThirtyEight Ultimate Halloween Candy Power Ranking v1 (MIT)
+      - name: bronze_off_changes
+        description: Open Food Facts daily change feed, appended once per file by Auto Loader
+      - name: bronze_off_change_files
+        description: Change-feed files archived in the volume (from_ts and to_ts parsed from the file name)
