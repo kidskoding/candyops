@@ -38,3 +38,18 @@ models:
       - name: comparison
         tests:
           - accepted_values: {arguments: {values: [unchanged, changed, newly_covered, not_enough_current_data]}}
+  - name: gold_warning_cost
+    description: Each restricted bowl with and without accepting "may contain" warnings
+    columns:
+      - name: restriction
+        tests: [unique, not_null]
+      - name: warning_cost_pct
+        tests: [not_null, {value_between: {arguments: {min: 0, max: 100}}}]
+  - name: gold_safe_swaps
+    description: The most similar safe candy for each unrestricted-bowl favorite a restriction removes
+    tests:
+      - unique_combination: {arguments: {columns: [restriction, favorite]}}
+  - name: gold_allergy_safe_candies
+    description: Candies a kid with each allergy can eat, under the same rules as the bowls
+    tests:
+      - unique_combination: {arguments: {columns: [allergen, candy]}}

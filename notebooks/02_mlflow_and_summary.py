@@ -54,3 +54,45 @@ run_id = log_runs(mlflow, run_records(bowls, match_methods), f"/Users/{user}/can
                   f"pipeline-{SCHEMA}",
                   {"off_dataset": OFF_DATASET, "ranking_dataset": RANKING_DATASET, "schema": SCHEMA})
 print(f"MLflow parent run {run_id}: {len(bowls)} bowls, {len(match_methods)} matching methods")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## One bowl for the whole street
+# MAGIC
+# MAGIC Picks the 10 candies that give the most kids a favorite they can eat, weighting peanut, milk and tree-nut
+# MAGIC allergies by how common they are in US children, and compares that bowl with the regular top 10.
+
+# COMMAND ----------
+
+from candyops.street_bowl import PREVALENCE, coverage, expected_win, kid_groups, street_bowl
+
+win = {r["candy"]: r["win_percent"] for r in rows("gold_candy_profile")}
+safe = {a: set() for a in PREVALENCE}
+for r in rows("gold_allergy_safe_candies"):
+    if r["allergen"] in safe:
+        safe[r["allergen"]].add(r["candy"])
+
+groups = kid_groups()
+bowl = street_bowl(win, safe)
+regular = sorted(win, key=lambda c: (-win[c], c))[:10]
+metrics = {
+    "street_expected_win": expected_win(bowl, win, safe, groups),
+    "regular_expected_win": expected_win(regular, win, safe, groups),
+    "street_avg_win": sum(win[c] for c in bowl) / len(bowl),
+    "regular_avg_win": sum(win[c] for c in regular) / len(regular),
+    **{f"street_options_{a}": n for a, n in coverage(bowl, safe).items()},
+    **{f"regular_options_{a}": n for a, n in coverage(regular, safe).items()},
+}
+
+spark.createDataFrame(
+    [(i + 1, c, float(win[c]), [a for a in PREVALENCE if c in safe[a]], c in regular) for i, c in enumerate(bowl)],
+    "bowl_rank INT, candy STRING, win_percent DOUBLE, safe_for ARRAY<STRING>, in_regular_bowl BOOLEAN",
+).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(fqn(CATALOG, SCHEMA, "gold_street_bowl"))
+
+with mlflow.start_run(run_name=f"street-bowl-{SCHEMA}"):
+    mlflow.set_tags({"project": "candyops", "run_type": "street_bowl"})
+    mlflow.log_params({**{f"prevalence_{a}": p for a, p in PREVALENCE.items()}, "bowl_size": len(bowl)})
+    mlflow.log_metrics(metrics)
+display(spark.table(fqn(CATALOG, SCHEMA, "gold_street_bowl")))
+print(metrics)
