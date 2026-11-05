@@ -42,6 +42,8 @@ def test_every_rule_compiles_and_names_are_unique(aliases, terms, rules):
     ("m&ms || m&ms", {"M&M's"}),
     ("peanut m&ms || mars", {"Peanut M&Ms"}),
     ("hersheys milk chocolate || hersheys", {"Hershey's Milk Chocolate"}),
+    # Junior Mints share the Tootsie Roll Industries brand and once stood in for Tootsie Roll Juniors (milk-free!)
+    ("junior mints, creamy mints, chocolate || tootsie roll industries inc.", {"Junior Mints"}),
 ])
 def test_rules_link_real_product_names(text, expected, aliases, rules):
     assert matched_candies(text, aliases, rules) == expected

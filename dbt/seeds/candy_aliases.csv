@@ -72,7 +72,7 @@ Sugar Daddy,\bsugar daddy\b,
 Super Bubble,\bsuper bubble\b,
 Swedish Fish,\bswedish fish\b,
 Tootsie Pop,\btootsie (roll )?pops?\b,
-Tootsie Roll Juniors,(?=.*\btootsie roll\b)(?=.*\bjuniors?\b),
+Tootsie Roll Juniors,(?=.*\btootsie roll\b)(?=.*\bjuniors?\b),\bjunior mints\b
 Tootsie Roll Midgies,(?=.*\btootsie roll\b)(?=.*\bmidg(ee|ie)s\b),
 Tootsie Roll Snack Bars,(?=.*\btootsie roll\b)(?=.*\bsnack bars?\b),
 Trolli Sour Bites,(?=.*\btrolli\b)(?=.*\bsour\b)(?=.*\bbites?\b),

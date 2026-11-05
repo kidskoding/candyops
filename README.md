@@ -44,14 +44,14 @@ compares a bowl's average win rate with that of the unrestricted bowl.
 | Restriction | Eligible candies | Popularity retained |
 |---|---|---|
 | None | 83 | 100.0% |
-| Gluten-free | 37 | 88.2% |
-| Peanut-free | 43 | 78.0% |
-| Nut-free | 41 | 77.1% |
-| Milk-free | 30 | 74.6% |
+| Gluten-free | 36 | 88.2% |
+| Peanut-free | 42 | 78.0% |
+| Nut-free | 40 | 77.1% |
+| Milk-free | 29 | 74.6% |
 | Free of all six allergens | 18 | 68.7% |
 
 Matching candies to products by name alone links 53 candies but also pulls in 80 products that are not candy, such as
-coffee creamer, ice cream and cereal. The curated matching rules link 68 candies with no non-candy matches.
+coffee creamer, ice cream and cereal. The curated matching rules link 67 candies with no non-candy matches.
 
 ### Is the 2017 answer still true?
 

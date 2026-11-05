@@ -1,6 +1,6 @@
 # candyops results
 
-**Executed** 2026-11-04 16:33 UTC against `workspace.candyops_dev` on Databricks (regenerate: `scripts/write_results.py`).
+**Executed** 2026-11-05 01:31 UTC against `workspace.candyops_dev` on Databricks (regenerate: `scripts/write_results.py`).
 
 Data: Open Food Facts (ODbL) and FiveThirtyEight's Candy Power Ranking (MIT), 2017 snapshots from Kaggle, plus the
 Open Food Facts daily change feed (products edited since the feed archive started).
@@ -19,8 +19,8 @@ Allergen statuses are parsed from crowdsourced ingredient lists, are not medical
 | sugar_values_out_of_range | 20 |
 | us_products | 173709 |
 | ranked_candies | 83 |
-| candies_matched | 68 |
-| candies_with_enough_evidence | 59 |
+| candies_matched | 67 |
+| candies_with_enough_evidence | 58 |
 | matched_products | 1217 |
 | feed_files_archived | 13 |
 | feed_rows_loaded | 98694 |
@@ -37,10 +37,10 @@ win rate with the unrestricted bowl's.
 | Restriction | Candies allowed | Avg win % | Popularity kept % | Median sugar g/100g | Bowl, most popular first |
 |---|---|---|---|---|---|
 | no_restriction | 83 | 76.28 | 100.0 | 51.7 | Reese's Peanut Butter cup, Reese's Miniatures, Twix, Kit Kat, Snickers, Reese's pieces, Milky Way, Reese's stuffed with pieces, Peanut butter M&M's, Nestle Butterfinger |
-| gluten_free | 37 | 67.31 | 88.2 | 52.9 | Reese's Peanut Butter cup, Reese's Miniatures, Reese's pieces, Peanut butter M&M's, Peanut M&Ms, Skittles original, Sour Patch Kids, Junior Mints, Haribo Gold Bears, Nerds |
-| peanut_free | 43 | 59.46 | 78.0 | 69.1 | Starburst, Rolo, Skittles original, Sour Patch Kids, Hershey's Special Dark, Junior Mints, Haribo Gold Bears, Nerds, Skittles wildberry, Swedish Fish |
-| nut_free | 41 | 58.83 | 77.1 | 69.4 | Starburst, Rolo, Skittles original, Sour Patch Kids, Junior Mints, Haribo Gold Bears, Nerds, Skittles wildberry, Swedish Fish, Lifesavers big ring gummies |
-| milk_free | 30 | 56.91 | 74.6 | 64.7 | Starburst, Skittles original, Sour Patch Kids, Haribo Gold Bears, Nerds, Skittles wildberry, Swedish Fish, Lifesavers big ring gummies, Air Heads, Haribo Sour Bears |
+| gluten_free | 36 | 67.31 | 88.2 | 52.9 | Reese's Peanut Butter cup, Reese's Miniatures, Reese's pieces, Peanut butter M&M's, Peanut M&Ms, Skittles original, Sour Patch Kids, Junior Mints, Haribo Gold Bears, Nerds |
+| peanut_free | 42 | 59.46 | 78.0 | 69.1 | Starburst, Rolo, Skittles original, Sour Patch Kids, Hershey's Special Dark, Junior Mints, Haribo Gold Bears, Nerds, Skittles wildberry, Swedish Fish |
+| nut_free | 40 | 58.83 | 77.1 | 69.4 | Starburst, Rolo, Skittles original, Sour Patch Kids, Junior Mints, Haribo Gold Bears, Nerds, Skittles wildberry, Swedish Fish, Lifesavers big ring gummies |
+| milk_free | 29 | 56.91 | 74.6 | 64.7 | Starburst, Skittles original, Sour Patch Kids, Haribo Gold Bears, Nerds, Skittles wildberry, Swedish Fish, Lifesavers big ring gummies, Air Heads, Haribo Sour Bears |
 | free_of_all_six | 18 | 52.39 | 68.7 | 64.7 | Skittles original, Sour Patch Kids, Haribo Gold Bears, Skittles wildberry, Swedish Fish, Lifesavers big ring gummies, Haribo Sour Bears, Welch's Fruit Snacks, Runts, Dots |
 
 ## 3. Matching: name only vs curated rules
@@ -48,7 +48,7 @@ win rate with the unrestricted bowl's.
 | Method | Candies matched | Of | Products | US products | Not candy |
 |---|---|---|---|---|---|
 | naive | 53 | 83 | 921 | 590 | 80 |
-| curated | 68 | 83 | 1217 | 746 | 0 |
+| curated | 67 | 83 | 1217 | 746 | 0 |
 
 ## 4. Is the 2017 answer still true?
 
@@ -152,7 +152,7 @@ Statuses: `contains` (most evidence lists it), `varies` (some products do), `may
 | 50 | Twizzlers | 45.466282 | 1 | 0 | all_countries | unknown | unknown | unknown | unknown | unknown | unknown |  |
 | 51 | Welch's Fruit Snacks | 44.375519 | 21 | 20 | us | not_listed | not_listed | not_listed | not_listed | not_listed | not_listed | 43.1 |
 | 52 | Fruit Chews | 43.088924 | 11 | 11 | us | not_listed | not_listed | contains | not_listed | contains | not_listed | 50.0 |
-| 53 | Tootsie Roll Juniors | 43.068897 | 5 | 5 | us | not_listed | not_listed | not_listed | not_listed | contains | not_listed | 79.7 |
+| 53 | Tootsie Roll Juniors | 43.068897 | 0 | 0 | no_match | unknown | unknown | unknown | unknown | unknown | unknown |  |
 | 54 | Runts | 42.849144 | 7 | 7 | us | not_listed | not_listed | not_listed | not_listed | not_listed | not_listed | 86.7 |
 | 55 | Dots | 42.272076 | 12 | 12 | us | not_listed | not_listed | not_listed | not_listed | not_listed | not_listed | 52.5 |
 | 56 | Haribo Twin Snakes | 42.178772 | 2 | 2 | all_countries | not_listed | not_listed | not_listed | contains | not_listed | not_listed | 44.2 |
