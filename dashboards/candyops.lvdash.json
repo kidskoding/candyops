@@ -200,6 +200,41 @@
         ")\n",
         "ORDER BY n_allergens, win_rate"
       ]
+    },
+    {
+      "name": "ds_swap_grid",
+      "displayName": "Favorites and peanut-free swaps",
+      "queryLines": [
+        "WITH top AS (\n",
+        "  SELECT p.popularity_rank AS r, p.candy, p.win_percent, p.peanut, p.tree_nut, p.milk, p.gluten, p.soy, p.egg,\n",
+        "         s.swap, s.swap_win_percent\n",
+        "  FROM gold_candy_profile p\n",
+        "  LEFT JOIN gold_safe_swaps s ON s.favorite = p.candy AND s.restriction = 'peanut_free'\n",
+        "  WHERE p.popularity_rank <= 10\n",
+        "),\n",
+        "cells AS (\n",
+        "  SELECT r, idx, status\n",
+        "  FROM top\n",
+        "  LATERAL VIEW STACK(6, 0, peanut, 1, tree_nut, 2, milk, 3, gluten, 4, soy, 5, egg) s AS idx, status\n",
+        ")\n",
+        "SELECT r AS grid_row, 'cell' AS kind, 4.6 + idx * 0.95 AS x0, 4.6 + idx * 0.95 + 0.88 AS x1,\n",
+        "  4.6 + idx * 0.95 + 0.44 AS tx,\n",
+        "  CASE status WHEN 'contains' THEN 'Contains' WHEN 'may_contain' THEN 'May contain' WHEN 'varies' THEN 'Varies'\n",
+        "    WHEN 'not_listed' THEN 'Not listed' ELSE 'No data' END AS label,\n",
+        "  CASE status WHEN 'contains' THEN '#FE8019' WHEN 'may_contain' THEN '#FABD2F' WHEN 'varies' THEN '#D5C4A1'\n",
+        "    WHEN 'not_listed' THEN '#83A598' ELSE '#3C3836' END AS fill,\n",
+        "  CASE WHEN status IN ('contains', 'may_contain', 'varies', 'not_listed') THEN '#1D2021' ELSE '#A89984' END AS ink\n",
+        "FROM cells\n",
+        "UNION ALL SELECT r, 'left', NULL, NULL, 0.1, CONCAT(r, '.  ', candy), NULL, '#EBDBB2' FROM top\n",
+        "UNION ALL SELECT r, 'center', NULL, NULL, 3.9, CONCAT(FORMAT_NUMBER(win_percent, 1), '%'), NULL, '#EBDBB2' FROM top\n",
+        "UNION ALL SELECT r, 'left', NULL, NULL, 10.5,\n",
+        "  CONCAT(swap, '  (', FORMAT_NUMBER(swap_win_percent, 1), '%)'), NULL, '#83A598' FROM top\n",
+        "UNION ALL SELECT 0, 'left', NULL, NULL, 0.1, 'Candy', NULL, '#A89984'\n",
+        "UNION ALL SELECT 0, 'center', NULL, NULL, 3.9, 'Win rate', NULL, '#A89984'\n",
+        "UNION ALL SELECT 0, 'left', NULL, NULL, 10.5, 'Closest peanut-free swap', NULL, '#A89984'\n",
+        "UNION ALL SELECT 0, 'center', NULL, NULL, 4.6 + idx * 0.95 + 0.44, name, NULL, '#A89984'\n",
+        "FROM VALUES (0, 'Peanut'), (1, 'Tree nut'), (2, 'Milk'), (3, 'Gluten'), (4, 'Soy'), (5, 'Egg') AS h(idx, name)"
+      ]
     }
   ],
   "pages": [
@@ -278,7 +313,7 @@
                 "showTitle": true,
                 "title": "Products analyzed",
                 "showDescription": true,
-                "description": "Open Food Facts records loaded and cleaned"
+                "description": "Food labels from Open Food Facts"
               }
             }
           },
@@ -328,7 +363,7 @@
                 "showTitle": true,
                 "title": "Candies with allergen evidence",
                 "showDescription": true,
-                "description": "At least two matched products with ingredients"
+                "description": "Backed by 2+ labeled products"
               }
             }
           },
@@ -377,7 +412,7 @@
                 "showTitle": true,
                 "title": "Peanut-free bowl",
                 "showDescription": true,
-                "description": "Share of the unrestricted bowl's popularity retained"
+                "description": "Popularity kept vs. any candy"
               }
             }
           },
@@ -427,7 +462,7 @@
                 "showTitle": true,
                 "title": "Allergen labels changed since 2017",
                 "showDescription": true,
-                "description": "Candies with current data whose status changed"
+                "description": "Of the candies with current data"
               }
             }
           },
@@ -504,11 +539,11 @@
                     "mappings": [
                       {
                         "value": "Chocolate",
-                        "color": "#EA580C"
+                        "color": "#FE8019"
                       },
                       {
                         "value": "Not chocolate",
-                        "color": "#8B5CF6"
+                        "color": "#83A598"
                       }
                     ]
                   }
@@ -518,7 +553,7 @@
                 "showTitle": true,
                 "title": "The candy kids love most is the candy allergic kids can't eat",
                 "showDescription": true,
-                "description": "Each dot is one of 59 candies with at least two labeled products. Listed includes may-contain warnings."
+                "description": "Each dot is one of 58 candies with at least two labeled products. Listed includes may-contain warnings."
               }
             }
           },
@@ -552,6 +587,105 @@
         },
         {
           "widget": {
+            "name": "favorites-swaps",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_swap_grid",
+                  "fields": [
+                    {
+                      "name": "grid_row",
+                      "expression": "`grid_row`"
+                    },
+                    {
+                      "name": "kind",
+                      "expression": "`kind`"
+                    },
+                    {
+                      "name": "x0",
+                      "expression": "`x0`"
+                    },
+                    {
+                      "name": "x1",
+                      "expression": "`x1`"
+                    },
+                    {
+                      "name": "tx",
+                      "expression": "`tx`"
+                    },
+                    {
+                      "name": "label",
+                      "expression": "`label`"
+                    },
+                    {
+                      "name": "fill",
+                      "expression": "`fill`"
+                    },
+                    {
+                      "name": "ink",
+                      "expression": "`ink`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "custom-vega-viz",
+              "jsonSpec": {
+                "type": "vega-lite",
+                "spec": "{\"$schema\": \"https://vega.github.io/schema/vega-lite/v6.json\", \"data\": {\"name\": \"databricks_query\"}, \"width\": \"container\", \"height\": \"container\", \"config\": {\"autosize\": {\"type\": \"fit\", \"contains\": \"padding\"}, \"view\": {\"stroke\": null}}, \"transform\": [{\"calculate\": \"toNumber(datum.grid_row)\", \"as\": \"grid_row\"}, {\"calculate\": \"toNumber(datum.x0)\", \"as\": \"x0\"}, {\"calculate\": \"toNumber(datum.x1)\", \"as\": \"x1\"}, {\"calculate\": \"toNumber(datum.tx)\", \"as\": \"tx\"}], \"layer\": [{\"transform\": [{\"filter\": \"datum.kind == 'cell'\"}], \"mark\": {\"type\": \"rect\", \"cornerRadius\": 4}, \"encoding\": {\"x\": {\"field\": \"x0\", \"type\": \"quantitative\", \"scale\": {\"domain\": [0, 13.4]}, \"axis\": null}, \"x2\": {\"field\": \"x1\"}, \"y\": {\"field\": \"grid_row\", \"type\": \"ordinal\", \"axis\": null, \"scale\": {\"paddingInner\": 0.18}}, \"color\": {\"field\": \"fill\", \"type\": \"nominal\", \"scale\": null, \"legend\": null}}}, {\"transform\": [{\"filter\": \"datum.kind == 'cell'\"}], \"mark\": {\"type\": \"text\", \"align\": \"center\", \"baseline\": \"middle\", \"fontSize\": 12}, \"encoding\": {\"x\": {\"field\": \"tx\", \"type\": \"quantitative\", \"scale\": {\"domain\": [0, 13.4]}, \"axis\": null}, \"y\": {\"field\": \"grid_row\", \"type\": \"ordinal\", \"axis\": null, \"scale\": {\"paddingInner\": 0.18}}, \"text\": {\"field\": \"label\"}, \"color\": {\"field\": \"ink\", \"type\": \"nominal\", \"scale\": null, \"legend\": null}}}, {\"transform\": [{\"filter\": \"datum.kind == 'center'\"}], \"mark\": {\"type\": \"text\", \"align\": \"center\", \"baseline\": \"middle\", \"fontSize\": 13}, \"encoding\": {\"x\": {\"field\": \"tx\", \"type\": \"quantitative\", \"scale\": {\"domain\": [0, 13.4]}, \"axis\": null}, \"y\": {\"field\": \"grid_row\", \"type\": \"ordinal\", \"axis\": null, \"scale\": {\"paddingInner\": 0.18}}, \"text\": {\"field\": \"label\"}, \"color\": {\"field\": \"ink\", \"type\": \"nominal\", \"scale\": null, \"legend\": null}}}, {\"transform\": [{\"filter\": \"datum.kind == 'left'\"}], \"mark\": {\"type\": \"text\", \"align\": \"left\", \"baseline\": \"middle\", \"fontSize\": 13}, \"encoding\": {\"x\": {\"field\": \"tx\", \"type\": \"quantitative\", \"scale\": {\"domain\": [0, 13.4]}, \"axis\": null}, \"y\": {\"field\": \"grid_row\", \"type\": \"ordinal\", \"axis\": null, \"scale\": {\"paddingInner\": 0.18}}, \"text\": {\"field\": \"label\"}, \"color\": {\"field\": \"ink\", \"type\": \"nominal\", \"scale\": null, \"legend\": null}}}]}"
+              },
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "grid_row"
+                  },
+                  {
+                    "fieldName": "kind"
+                  },
+                  {
+                    "fieldName": "x0"
+                  },
+                  {
+                    "fieldName": "x1"
+                  },
+                  {
+                    "fieldName": "tx"
+                  },
+                  {
+                    "fieldName": "label"
+                  },
+                  {
+                    "fieldName": "fill"
+                  },
+                  {
+                    "fieldName": "ink"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "What the 10 most popular candies contain, and the closest peanut-free swap",
+                "showDescription": true,
+                "description": "Swap: the most similar candy in the peanut-free bowl, with its win rate. No data means fewer than two matched products list ingredients."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 12,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
             "name": "section-bowls",
             "multilineTextboxSpec": {
               "lines": [
@@ -561,7 +695,7 @@
           },
           "position": {
             "x": 0,
-            "y": 15,
+            "y": 24,
             "width": 12,
             "height": 1
           }
@@ -674,7 +808,7 @@
           },
           "position": {
             "x": 0,
-            "y": 16,
+            "y": 25,
             "width": 5,
             "height": 6
           }
@@ -747,7 +881,7 @@
           },
           "position": {
             "x": 5,
-            "y": 16,
+            "y": 25,
             "width": 7,
             "height": 6
           }
@@ -838,7 +972,7 @@
           },
           "position": {
             "x": 0,
-            "y": 22,
+            "y": 31,
             "width": 6,
             "height": 6
           }
@@ -944,7 +1078,7 @@
           },
           "position": {
             "x": 6,
-            "y": 22,
+            "y": 31,
             "width": 6,
             "height": 6
           }
@@ -960,7 +1094,7 @@
           },
           "position": {
             "x": 0,
-            "y": 28,
+            "y": 37,
             "width": 12,
             "height": 1
           }
@@ -1054,7 +1188,7 @@
           },
           "position": {
             "x": 0,
-            "y": 29,
+            "y": 38,
             "width": 7,
             "height": 10
           }
@@ -1145,7 +1279,7 @@
           },
           "position": {
             "x": 7,
-            "y": 29,
+            "y": 38,
             "width": 5,
             "height": 10
           }
@@ -1161,7 +1295,7 @@
           },
           "position": {
             "x": 0,
-            "y": 39,
+            "y": 48,
             "width": 12,
             "height": 1
           }
@@ -1257,7 +1391,7 @@
           },
           "position": {
             "x": 0,
-            "y": 40,
+            "y": 49,
             "width": 4,
             "height": 7
           }
@@ -1349,7 +1483,7 @@
           },
           "position": {
             "x": 4,
-            "y": 40,
+            "y": 49,
             "width": 8,
             "height": 7
           }
@@ -1455,7 +1589,7 @@
           },
           "position": {
             "x": 0,
-            "y": 47,
+            "y": 56,
             "width": 4,
             "height": 6
           }
@@ -1471,7 +1605,7 @@
           },
           "position": {
             "x": 4,
-            "y": 47,
+            "y": 56,
             "width": 8,
             "height": 1
           }
@@ -1545,7 +1679,7 @@
           },
           "position": {
             "x": 4,
-            "y": 48,
+            "y": 57,
             "width": 4,
             "height": 5
           }
@@ -1603,7 +1737,7 @@
           },
           "position": {
             "x": 8,
-            "y": 48,
+            "y": 57,
             "width": 4,
             "height": 5
           }
@@ -1619,7 +1753,7 @@
           },
           "position": {
             "x": 0,
-            "y": 53,
+            "y": 62,
             "width": 12,
             "height": 2
           }
@@ -1633,19 +1767,19 @@
     "theme": {
       "canvasBackgroundColor": {
         "light": "#FBF7F2",
-        "dark": "#14101A"
+        "dark": "#1D2021"
       },
       "widgetBackgroundColor": {
         "light": "#FFFFFF",
-        "dark": "#1E1726"
+        "dark": "#282828"
       },
       "widgetBorderColor": {
         "light": "#FFFFFF",
-        "dark": "#1E1726"
+        "dark": "#282828"
       },
       "fontColor": {
         "light": "#1F1A24",
-        "dark": "#F3EDE4"
+        "dark": "#EBDBB2"
       },
       "selectionColor": {
         "light": "#F97316",

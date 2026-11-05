@@ -250,14 +250,14 @@ LAYOUT = [
                       "Each bowl contains the 10 most popular candies whose labels list none of the restricted "
                       "allergens."], 0, 1, 12, 2),
     counter("kpi-products", "Products analyzed", "products_scanned", CNT, 0,
-            "Open Food Facts records loaded and cleaned"),
+            "Food labels from Open Food Facts"),
     counter("kpi-evidence", "Candies with allergen evidence", "candies_with_evidence", {"type": "number-plain"}, 3,
-            "At least two matched products with ingredients",
+            "Backed by 2+ labeled products",
             ("{{ @formatted }} of {{ ranked_candies }}", "ranked_candies")),
     counter("kpi-peanut", "Peanut-free bowl", "peanut_free_kept", PCT, 6,
-            "Share of the unrestricted bowl's popularity retained"),
+            "Popularity kept vs. any candy"),
     counter("kpi-changed", "Allergen labels changed since 2017", "candies_changed", {"type": "number-plain"}, 9,
-            "Candies with current data whose status changed",
+            "Of the candies with current data",
             ("{{ @formatted }} of {{ candies_compared }}", "candies_compared")),
 
     {"widget": {"name": "allergens-vs-popularity",
@@ -271,10 +271,10 @@ LAYOUT = [
                                    "displayName": "Win rate in head-to-head votes", "format": PCT},
                              "color": {"fieldName": "candy_type", "displayName": "Candy type",
                                        "scale": {"type": "categorical", "mappings": [
-                                           {"value": "Chocolate", "color": "#EA580C"},
-                                           {"value": "Not chocolate", "color": "#8B5CF6"}]}}},
+                                           {"value": "Chocolate", "color": "#FE8019"},
+                                           {"value": "Not chocolate", "color": "#83A598"}]}}},
                          "frame": frame("The candy kids love most is the candy allergic kids can't eat",
-                                        "Each dot is one of 59 candies with at least two labeled products. "
+                                        "Each dot is one of 58 candies with at least two labeled products. "
                                         "Listed includes may-contain warnings.")}},
      "position": pos(0, 6, 12, 8)},
 
@@ -375,23 +375,98 @@ SECTIONS = [
     text("section-changes", ["## Is the 2017 answer still true?"], 0, 0, 0, 0),
     text("section-cleaning", ["## How the data was cleaned and matched"], 0, 0, 0, 0),
 ]
+# One custom Vega-Lite grid: allergen status of the 10 favorites beside their closest peanut-free swap.
+# The SQL emits one row per drawn cell or label, with x positions precomputed (Vega-Lite does no table layout).
+SWAP_GRID_SQL = """
+WITH top AS (
+  SELECT p.popularity_rank AS r, p.candy, p.win_percent, p.peanut, p.tree_nut, p.milk, p.gluten, p.soy, p.egg,
+         s.swap, s.swap_win_percent
+  FROM gold_candy_profile p
+  LEFT JOIN gold_safe_swaps s ON s.favorite = p.candy AND s.restriction = 'peanut_free'
+  WHERE p.popularity_rank <= 10
+),
+cells AS (
+  SELECT r, idx, status
+  FROM top
+  LATERAL VIEW STACK(6, 0, peanut, 1, tree_nut, 2, milk, 3, gluten, 4, soy, 5, egg) s AS idx, status
+)
+SELECT r AS grid_row, 'cell' AS kind, 4.6 + idx * 0.95 AS x0, 4.6 + idx * 0.95 + 0.88 AS x1,
+  4.6 + idx * 0.95 + 0.44 AS tx,
+  CASE status WHEN 'contains' THEN 'Contains' WHEN 'may_contain' THEN 'May contain' WHEN 'varies' THEN 'Varies'
+    WHEN 'not_listed' THEN 'Not listed' ELSE 'No data' END AS label,
+  CASE status WHEN 'contains' THEN '#FE8019' WHEN 'may_contain' THEN '#FABD2F' WHEN 'varies' THEN '#D5C4A1'
+    WHEN 'not_listed' THEN '#83A598' ELSE '#3C3836' END AS fill,
+  CASE WHEN status IN ('contains', 'may_contain', 'varies', 'not_listed') THEN '#1D2021' ELSE '#A89984' END AS ink
+FROM cells
+UNION ALL SELECT r, 'left', NULL, NULL, 0.1, CONCAT(r, '.  ', candy), NULL, '#EBDBB2' FROM top
+UNION ALL SELECT r, 'center', NULL, NULL, 3.9, CONCAT(FORMAT_NUMBER(win_percent, 1), '%'), NULL, '#EBDBB2' FROM top
+UNION ALL SELECT r, 'left', NULL, NULL, 10.5,
+  CONCAT(swap, '  (', FORMAT_NUMBER(swap_win_percent, 1), '%)'), NULL, '#83A598' FROM top
+UNION ALL SELECT 0, 'left', NULL, NULL, 0.1, 'Candy', NULL, '#A89984'
+UNION ALL SELECT 0, 'center', NULL, NULL, 3.9, 'Win rate', NULL, '#A89984'
+UNION ALL SELECT 0, 'left', NULL, NULL, 10.5, 'Closest peanut-free swap', NULL, '#A89984'
+UNION ALL SELECT 0, 'center', NULL, NULL, 4.6 + idx * 0.95 + 0.44, name, NULL, '#A89984'
+FROM VALUES (0, 'Peanut'), (1, 'Tree nut'), (2, 'Milk'), (3, 'Gluten'), (4, 'Soy'), (5, 'Egg') AS h(idx, name)"""
+
+X = {"field": "x0", "type": "quantitative", "scale": {"domain": [0, 13.4]}, "axis": None}
+Y = {"field": "grid_row", "type": "ordinal", "axis": None, "scale": {"paddingInner": 0.18}}
+INK = {"field": "ink", "type": "nominal", "scale": None, "legend": None}
+def text(align, filt, size=13):
+    return {"transform": [{"filter": filt}],
+            "mark": {"type": "text", "align": align, "baseline": "middle", "fontSize": size},
+            "encoding": {"x": {**X, "field": "tx"}, "y": Y, "text": {"field": "label"}, "color": INK}}
+SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+    "data": {"name": "databricks_query"},
+    "width": "container", "height": "container",
+    "config": {"autosize": {"type": "fit", "contains": "padding"}, "view": {"stroke": None}},
+    "transform": [{"calculate": "toNumber(datum.grid_row)", "as": "grid_row"},
+                  {"calculate": "toNumber(datum.x0)", "as": "x0"}, {"calculate": "toNumber(datum.x1)", "as": "x1"},
+                  {"calculate": "toNumber(datum.tx)", "as": "tx"}],
+    "layer": [
+        {"transform": [{"filter": "datum.kind == 'cell'"}],
+         "mark": {"type": "rect", "cornerRadius": 4},
+         "encoding": {"x": X, "x2": {"field": "x1"}, "y": Y,
+                      "color": {"field": "fill", "type": "nominal", "scale": None, "legend": None}}},
+        text("center", "datum.kind == 'cell'", 12),
+        text("center", "datum.kind == 'center'"),
+        text("left", "datum.kind == 'left'"),
+    ],
+}
+FIELDS = ["grid_row", "kind", "x0", "x1", "tx", "label", "fill", "ink"]
+
+SWAP_GRID = {"widget": {
+    "name": "favorites-swaps",
+    "queries": q("ds_swap_grid", FIELDS),
+    "spec": {"version": 1, "widgetType": "custom-vega-viz",
+             "jsonSpec": {"type": "vega-lite", "spec": json.dumps(SPEC)},
+             "encodings": {"fields": [{"fieldName": f} for f in FIELDS]},
+             "data": {"queryName": "main_query"},
+             "frame": frame("What the 10 most popular candies contain, and the closest peanut-free swap",
+                            "Swap: the most similar candy in the peanut-free bowl, with its win rate. "
+                            "No data means fewer than two matched products list ingredients.")}}}
+
+DATASETS.append({"name": "ds_swap_grid", "displayName": "Favorites and peanut-free swaps",
+                 "queryLines": ql(SWAP_GRID_SQL)})
+
 POSITIONS = {
     "title": (0, 0, 12, 1), "subtitle": (0, 1, 12, 2),
     "kpi-products": (0, 3, 3, 3), "kpi-evidence": (3, 3, 3, 3), "kpi-peanut": (6, 3, 3, 3), "kpi-changed": (9, 3, 3, 3),
     "allergens-vs-popularity": (0, 6, 8, 9), "findings": (8, 6, 4, 9),
-    "section-bowls": (0, 15, 12, 1),
-    "kept-by-restriction": (0, 16, 5, 6), "bowls": (5, 16, 7, 6),
-    "chocolate-mix": (0, 22, 6, 6), "sugar-by-bowl": (6, 22, 6, 6),
-    "section-candies": (0, 28, 12, 1),
-    "allergen-heatmap": (0, 29, 7, 10), "candies": (7, 29, 5, 10),
-    "section-changes": (0, 39, 12, 1),
-    "change-outcomes": (0, 40, 4, 7), "changes": (4, 40, 8, 7),
-    "changes-by-allergen": (0, 47, 4, 6),
-    "section-cleaning": (4, 47, 8, 1),
-    "matching-methods": (4, 48, 4, 5), "quality": (8, 48, 4, 5),
-    "footer": (0, 53, 12, 2),
+    "favorites-swaps": (0, 15, 12, 9),
+    "section-bowls": (0, 24, 12, 1),
+    "kept-by-restriction": (0, 25, 5, 6), "bowls": (5, 25, 7, 6),
+    "chocolate-mix": (0, 31, 6, 6), "sugar-by-bowl": (6, 31, 6, 6),
+    "section-candies": (0, 37, 12, 1),
+    "allergen-heatmap": (0, 38, 7, 10), "candies": (7, 38, 5, 10),
+    "section-changes": (0, 48, 12, 1),
+    "change-outcomes": (0, 49, 4, 7), "changes": (4, 49, 8, 7),
+    "changes-by-allergen": (0, 56, 4, 6),
+    "section-cleaning": (4, 56, 8, 1),
+    "matching-methods": (4, 57, 4, 5), "quality": (8, 57, 4, 5),
+    "footer": (0, 62, 12, 2),
 }
-LAYOUT = LAYOUT + [FINDINGS] + SECTIONS
+LAYOUT = LAYOUT + [FINDINGS, SWAP_GRID] + SECTIONS
 for item in LAYOUT:
     item["position"] = pos(*POSITIONS[item["widget"]["name"]])
 LAYOUT.sort(key=lambda item: (item["position"]["y"], item["position"]["x"]))
@@ -400,10 +475,10 @@ DASH = {"datasets": DATASETS,
         "pages": [{"name": "overview", "displayName": "Candy and allergies", "layout": LAYOUT,
                    "pageType": "PAGE_TYPE_CANVAS", "layoutVersion": "GRID_V1"}],
         "uiSettings": {"theme": {
-            "canvasBackgroundColor": {"light": "#FBF7F2", "dark": "#14101A"},
-            "widgetBackgroundColor": {"light": "#FFFFFF", "dark": "#1E1726"},
-            "widgetBorderColor": {"light": "#FFFFFF", "dark": "#1E1726"},
-            "fontColor": {"light": "#1F1A24", "dark": "#F3EDE4"},
+            "canvasBackgroundColor": {"light": "#FBF7F2", "dark": "#1D2021"},
+            "widgetBackgroundColor": {"light": "#FFFFFF", "dark": "#282828"},
+            "widgetBorderColor": {"light": "#FFFFFF", "dark": "#282828"},
+            "fontColor": {"light": "#1F1A24", "dark": "#EBDBB2"},
             "selectionColor": {"light": ORANGE, "dark": AMBER},
             "visualizationColors": [ORANGE, PURPLE, GREY, AMBER, LAVENDER, "#16A34A"],
             "widgetHeaderAlignment": "LEFT",
