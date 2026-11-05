@@ -28,10 +28,10 @@ THEMES = {
               "ORANGE": "#C2410C", "PURPLE": "#7C3AED", "LAVENDER": "#A78BFA", "GREY": "#A8A29E", "AXIS": "#15803D",
               "SEVERITY": {"contains": "#9A3412", "varies": "#EA580C", "may_contain": "#FB923C",
                            "not_listed": "#F1EFEC", "unknown": "#FFFFFF"}},
-    # gruvbox dark, the blog's palette: fg, fg2, bg2, bg; orange, purple, aqua, fg3; orange ramp bright to faded
+    # gruvbox dark, the blog's palette: fg, fg2, bg2, bg; red and aqua for data; a red ramp for allergen status
     "dark": {"INK": "#EBDBB2", "MUTED": "#A89984", "GRID": "#3C3836", "BG": "#282828",
-             "ORANGE": "#FE8019", "PURPLE": "#D3869B", "LAVENDER": "#8EC07C", "GREY": "#7C6F64", "AXIS": "#B8BB26",
-             "SEVERITY": {"contains": "#FE8019", "varies": "#D65D0E", "may_contain": "#AF3A03",
+             "ORANGE": "#FB4934", "PURPLE": "#8EC07C", "LAVENDER": "#A89984", "GREY": "#7C6F64", "AXIS": "#B8BB26",
+             "SEVERITY": {"contains": "#FD9B8F", "varies": "#FB4934", "may_contain": "#C03A2F",
                           "not_listed": "#3C3836", "unknown": "#282828"}},
 }
 INK = MUTED = GRID = BG = ORANGE = PURPLE = LAVENDER = GREY = AXIS = ""
@@ -306,7 +306,7 @@ def street_bowl(rows):
                  "The bowl that gives the most kids a favorite, weighting allergies by how common they are", 6.6)
     ax = fig.add_axes([0.38, 0.15, 0.56, 0.62])
     values = [float(r["win_percent"]) for r in rows]
-    ax.barh([r["candy"] for r in rows], values, color=[ORANGE if s else GREY for s in safe], height=0.62)
+    ax.barh([r["candy"] for r in rows], values, color=[PURPLE if s else GREY for s in safe], height=0.62)
     for i, (v, s) in enumerate(zip(values, safe, strict=True)):
         label = f"{v:.1f}%" + ("  allergy-safe, replaces Butterfinger" if s else "")
         ax.text(v + 1, i, label, va="center", fontsize=9, color=INK if s else MUTED)
