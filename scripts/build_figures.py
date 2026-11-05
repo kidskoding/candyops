@@ -25,22 +25,23 @@ OUT = ROOT / "docs" / "figures"
 # Each theme's chart colors were checked with the dataviz palette validator against its background.
 THEMES = {
     "light": {"INK": "#1F1A24", "MUTED": "#6B6375", "GRID": "#ECE8F0", "BG": "#FFFFFF",
-              "ORANGE": "#C2410C", "PURPLE": "#7C3AED", "LAVENDER": "#A78BFA", "GREY": "#A8A29E",
+              "ORANGE": "#C2410C", "PURPLE": "#7C3AED", "LAVENDER": "#A78BFA", "GREY": "#A8A29E", "AXIS": "#15803D",
               "SEVERITY": {"contains": "#9A3412", "varies": "#EA580C", "may_contain": "#FB923C",
                            "not_listed": "#F1EFEC", "unknown": "#FFFFFF"}},
     # gruvbox dark, the blog's palette: fg, fg2, bg2, bg; orange, purple, aqua, fg3; orange ramp bright to faded
     "dark": {"INK": "#EBDBB2", "MUTED": "#A89984", "GRID": "#3C3836", "BG": "#282828",
-             "ORANGE": "#FE8019", "PURPLE": "#D3869B", "LAVENDER": "#8EC07C", "GREY": "#7C6F64",
+             "ORANGE": "#FE8019", "PURPLE": "#D3869B", "LAVENDER": "#8EC07C", "GREY": "#7C6F64", "AXIS": "#B8BB26",
              "SEVERITY": {"contains": "#FE8019", "varies": "#D65D0E", "may_contain": "#AF3A03",
                           "not_listed": "#3C3836", "unknown": "#282828"}},
 }
-INK = MUTED = GRID = BG = ORANGE = PURPLE = LAVENDER = GREY = ""
+INK = MUTED = GRID = BG = ORANGE = PURPLE = LAVENDER = GREY = AXIS = ""
 SEVERITY: dict[str, str] = {}
 
 
 def apply_theme(name: str) -> None:
     globals().update(THEMES[name])
-    plt.rcParams.update({"text.color": INK, "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": INK,
+    plt.rcParams.update({"text.color": INK, "axes.labelcolor": AXIS, "axes.labelweight": "bold",
+                         "axes.labelpad": 10, "xtick.color": MUTED, "ytick.color": INK,
                          "axes.edgecolor": GRID, "axes.facecolor": BG, "figure.facecolor": BG})
 RESTRICTION_LABELS = {"no_restriction": "No restriction", "gluten_free": "Gluten-free", "peanut_free": "Peanut-free",
                       "nut_free": "Nut-free", "milk_free": "Milk-free", "free_of_all_six": "Free of all six"}
@@ -56,7 +57,7 @@ FONT = next((f for f in ["Google Sans Code", "TeX Gyre Heros", "Liberation Sans"
 plt.rcParams.update({"font.family": FONT, "font.size": 11})
 
 
-def figure(title: str, subtitle: str, height: float = 5.0):
+def figure(title: str, subtitle: str, height: float = 6.0):
     # monospace text runs about 20% wider: a 1.2x larger canvas at 1/1.2 the dpi keeps the pixel size, shrinks the text
     fig = plt.figure(figsize=(8 * 1.2, height * 1.2), dpi=200 / 1.2, facecolor=BG)
     fig.text(0.04, 1 - 0.32 / height, title, fontsize=16, fontweight="bold", va="top")
@@ -91,8 +92,8 @@ def allergens_vs_popularity(rows):
             r["x"] = n + (i % 4 - 1.5) * 0.11  # spread equal counts side by side so dots do not overlap
     fig = figure("The most popular candies list the most allergens",
                  f"Each dot is one of {len(rows)} candies with at least two labeled products. "
-                 "Lines show the average win rate.", 5.6)
-    ax = fig.add_axes([0.1, 0.14, 0.86, 0.66])
+                 "Lines show the average win rate.", 6.6)
+    ax = fig.add_axes([0.1, 0.15, 0.86, 0.63])
     for choc, color, label in [("true", ORANGE, "Chocolate"), ("false", PURPLE, "Not chocolate")]:
         pts = [r for r in rows if r["chocolate"] == choc]
         ax.scatter([r["x"] for r in pts], [r["w"] for r in pts], s=42, color=color, edgecolor=BG, linewidth=1,
@@ -123,15 +124,17 @@ def popularity_retained(bowls):
     bowls = sorted(bowls, key=lambda b: float(b["popularity_kept_pct"]))
     fig = figure("Every restriction costs popularity",
                  "Average win rate of each 10-candy bowl, as a share of the unrestricted bowl")
-    ax = fig.add_axes([0.2, 0.12, 0.74, 0.66])
+    ax = fig.add_axes([0.27, 0.12, 0.67, 0.66])
     labels = [RESTRICTION_LABELS[b["restriction"]] for b in bowls]
     values = [float(b["popularity_kept_pct"]) for b in bowls]
     colors = [GREY if b["restriction"] == "no_restriction" else ORANGE for b in bowls]
     ax.barh(labels, values, color=colors, height=0.62)
     for i, (v, b) in enumerate(zip(values, bowls, strict=True)):
         ax.text(v + 1, i, f"{v:.1f}%   {b['candies_allowed']} eligible candies", va="center", fontsize=9.5)
-    ax.set_xlim(0, 135)
+    ax.set_xlim(0, 165)
     ax.set_xticks(range(0, 101, 25), [f"{v}%" for v in range(0, 101, 25)])
+    ax.set_xlabel("Popularity kept, compared with the unrestricted bowl")
+    ax.set_ylabel("Bowl")
     tidy(ax)
     save(fig, "fig2_popularity_retained.png", "candyops gold_bowl_summary")
 
@@ -143,7 +146,7 @@ def chocolate_share(mix):
     other = [counts.get((r, "Not chocolate"), 0) for r in order]
     fig = figure("Chocolate disappears as restrictions are added",
                  "Chocolate and non-chocolate candies in each 10-candy bowl")
-    ax = fig.add_axes([0.2, 0.12, 0.74, 0.62])
+    ax = fig.add_axes([0.27, 0.12, 0.67, 0.56])
     labels = [RESTRICTION_LABELS[r] for r in order]
     ax.barh(labels, choc, color=ORANGE, height=0.62, label="Chocolate", edgecolor=BG, linewidth=1.5)
     ax.barh(labels, other, left=choc, color=PURPLE, height=0.62, label="Not chocolate", edgecolor=BG, linewidth=1.5)
@@ -154,6 +157,8 @@ def chocolate_share(mix):
             ax.text(c + o / 2, i, str(o), ha="center", va="center", color=BG, fontsize=9.5, fontweight="bold")
     ax.set_xlim(0, 10)
     ax.set_xticks(range(0, 11, 2))
+    ax.set_xlabel("Candies in the 10-candy bowl")
+    ax.set_ylabel("Bowl")
     tidy(ax)
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
     save(fig, "fig3_chocolate_share.png", "candyops gold_bowls and gold_candy_profile")
@@ -163,7 +168,7 @@ def sugar_by_bowl(bowls):
     bowls = sorted(bowls, key=lambda b: float(b["median_sugars_100g"]))
     fig = figure("Allergy-safe bowls contain more sugar",
                  "Median sugar per 100 g in each bowl. Safe bowls rely on fruit candy instead of chocolate.")
-    ax = fig.add_axes([0.2, 0.17, 0.74, 0.61])
+    ax = fig.add_axes([0.27, 0.17, 0.67, 0.61])
     labels = [RESTRICTION_LABELS[b["restriction"]] for b in bowls]
     values = [float(b["median_sugars_100g"]) for b in bowls]
     ax.barh(labels, values, color=[GREY if b["restriction"] == "no_restriction" else PURPLE for b in bowls],
@@ -172,14 +177,15 @@ def sugar_by_bowl(bowls):
         ax.text(v + 1, i, f"{v:.1f} g", va="center", fontsize=9.5)
     ax.set_xlim(0, 85)
     ax.set_xlabel("Grams of sugar per 100 g (median)")
+    ax.set_ylabel("Bowl")
     tidy(ax)
     save(fig, "fig4_sugar_by_bowl.png", "candyops gold_bowl_summary")
 
 
 def allergen_heatmap(candies):
     fig = figure("Allergen status of the 20 most popular candies",
-                 "From matched Open Food Facts labels. Unknown means no matched product had an ingredient list.", 8.2)
-    ax = fig.add_axes([0.32, 0.1, 0.64, 0.76])
+                 "From matched Open Food Facts labels. Unknown means no matched product had an ingredient list.", 9.4)
+    ax = fig.add_axes([0.4, 0.1, 0.56, 0.74])
     short = {"contains": "contains", "varies": "varies", "may_contain": "may", "not_listed": "", "unknown": "?"}
     for row, c in enumerate(candies):
         for col, (key, _) in enumerate(ALLERGENS):
@@ -193,6 +199,9 @@ def allergen_heatmap(candies):
     ax.set_ylim(len(candies), 0)
     ax.set_xticks([i + 0.47 for i in range(6)], [label for _, label in ALLERGENS])
     ax.xaxis.tick_top()
+    ax.xaxis.set_label_position("top")
+    ax.set_xlabel("Allergen")
+    ax.set_ylabel("Candy, by popularity rank")
     ax.set_yticks([i + 0.44 for i in range(len(candies))],
                   [f"{int(c['popularity_rank'])}. {c['candy']}" for c in candies], fontsize=9)
     for side in ax.spines.values():
@@ -211,7 +220,7 @@ def matching_methods(methods):
     labels = ["Name only" if m["method"] == "naive" else "Curated rules" for m in order]
     fig = figure("Curated matching rules remove every false match",
                  "Matching on the name alone pulls in coffee creamer, ice cream and cereal")
-    ax = fig.add_axes([0.1, 0.14, 0.86, 0.6])
+    ax = fig.add_axes([0.1, 0.14, 0.86, 0.54])
     x = range(len(order))
     for offset, key, color, label in [(-0.2, "candies_matched", PURPLE, "Candies matched (of 83)"),
                                       (0.2, "non_candy_products", ORANGE, "Non-candy products matched")]:
@@ -220,6 +229,8 @@ def matching_methods(methods):
         for i, v in zip(x, values, strict=True):
             ax.text(i + offset, v + 1.5, str(v), ha="center", fontsize=10)
     ax.set_xticks(list(x), labels, fontsize=11)
+    ax.set_xlabel("Matching method")
+    ax.set_ylabel("Number of candies or products")
     ax.set_ylim(0, 95)
     tidy(ax, "y")
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
@@ -232,13 +243,14 @@ def label_changes(outcomes):
     compared = counts.get("Changed", 0) + counts.get("Unchanged", 0)
     fig = figure(f"{counts.get('Changed', 0)} of {compared} candies with current data changed allergen status",
                  "Each candy's 2017 status compared with products edited since the daily change feed started")
-    ax = fig.add_axes([0.27, 0.17, 0.67, 0.61])
+    ax = fig.add_axes([0.38, 0.17, 0.56, 0.61])
     colors = {"Changed": ORANGE, "Unchanged": PURPLE, "Newly covered": LAVENDER, "Not enough current data": GREY}
     values = [counts.get(o, 0) for o in order]
     ax.barh(order, values, color=[colors[o] for o in order], height=0.62)
     for i, v in enumerate(values):
         ax.text(v + 0.8, i, str(v), va="center", fontsize=10)
     ax.set_xlabel("Candies")
+    ax.set_ylabel("2017 status compared with current labels")
     tidy(ax)
     save(fig, "fig7_label_changes.png", "candyops gold_label_changes")
 
@@ -247,7 +259,7 @@ def warning_cost(rows):
     rows = sorted(rows, key=lambda r: float(r["popularity_kept_strict_pct"]))
     fig = figure("\"May contain\" warnings cost the peanut-free bowl 7.9 points",
                  "Popularity kept by each bowl when may-contain warnings exclude a candy, and when they are accepted")
-    ax = fig.add_axes([0.2, 0.17, 0.74, 0.58])
+    ax = fig.add_axes([0.27, 0.17, 0.67, 0.52])
     for i, r in enumerate(rows):
         strict, relaxed = float(r["popularity_kept_strict_pct"]), float(r["popularity_kept_with_warnings_pct"])
         ax.plot([strict, relaxed], [i, i], color=GRID if strict == relaxed else MUTED, linewidth=2, zorder=1)
@@ -259,6 +271,7 @@ def warning_cost(rows):
     ax.set_xlim(60, 100)
     ax.set_xticks(range(60, 101, 10), [f"{v}%" for v in range(60, 101, 10)])
     ax.set_xlabel("Popularity kept, compared with the unrestricted bowl")
+    ax.set_ylabel("Bowl")
     tidy(ax)
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
     save(fig, "fig8_warning_cost.png", "candyops gold_warning_cost")
@@ -268,8 +281,8 @@ def safe_swaps(rows):
     rows = sorted(rows, key=lambda r: int(r["favorite_rank"]), reverse=True)
     fig = figure("The closest peanut-free swap for each favorite",
                  "Most similar peanut-free candy by FiveThirtyEight's traits, sugar and price, with both win rates",
-                 5.8)
-    ax = fig.add_axes([0.33, 0.12, 0.6, 0.68])
+                 7.2)
+    ax = fig.add_axes([0.4, 0.12, 0.54, 0.66])
     for i, r in enumerate(rows):
         fav, swap = float(r["favorite_win_percent"]), float(r["swap_win_percent"])
         ax.plot([swap, fav], [i, i], color=MUTED, linewidth=1.5, zorder=1)
@@ -280,6 +293,7 @@ def safe_swaps(rows):
     ax.set_xlim(10, 90)
     ax.set_xticks(range(20, 91, 10), [f"{v}%" for v in range(20, 91, 10)])
     ax.set_xlabel("Win rate in head-to-head votes")
+    ax.set_ylabel("Favorite in the unrestricted bowl")
     tidy(ax)
     ax.legend(loc="lower center", bbox_to_anchor=(0.4, 1.0), ncol=2, frameon=False, fontsize=9.5)
     save(fig, "fig9_safe_swaps.png", "candyops gold_safe_swaps")
@@ -290,8 +304,8 @@ def street_bowl(rows):
     safe = [len(json.loads(r["safe_for"])) > 0 if isinstance(r["safe_for"], str) else bool(r["safe_for"])
             for r in rows]
     fig = figure("One swap gives every allergic kid something to eat",
-                 "The bowl that gives the most kids a favorite, weighting allergies by how common they are", 5.6)
-    ax = fig.add_axes([0.3, 0.13, 0.64, 0.66])
+                 "The bowl that gives the most kids a favorite, weighting allergies by how common they are", 6.6)
+    ax = fig.add_axes([0.38, 0.15, 0.56, 0.62])
     values = [float(r["win_percent"]) for r in rows]
     ax.barh([r["candy"] for r in rows], values, color=[ORANGE if s else GREY for s in safe], height=0.62)
     for i, (v, s) in enumerate(zip(values, safe, strict=True)):
@@ -300,6 +314,7 @@ def street_bowl(rows):
     ax.set_xlim(0, 150)
     ax.set_xticks(range(0, 101, 25), [f"{v}%" for v in range(0, 101, 25)])
     ax.set_xlabel("Win rate in head-to-head votes")
+    ax.set_ylabel("Candy in the street bowl")
     tidy(ax)
     save(fig, "fig10_street_bowl.png", "candyops gold_street_bowl; allergy rates from Gupta et al., Pediatrics 2018")
 
