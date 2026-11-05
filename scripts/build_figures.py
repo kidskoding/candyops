@@ -19,6 +19,7 @@ from matplotlib import font_manager
 from matplotlib.patches import Patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from chart_queries import ALLERGENS, load  # noqa: E402
 from write_results import ROOT, WAREHOUSE, cli, query  # noqa: E402
 
 OUT = ROOT / "docs" / "figures"
@@ -45,9 +46,6 @@ def apply_theme(name: str) -> None:
                          "axes.edgecolor": GRID, "axes.facecolor": BG, "figure.facecolor": BG})
 RESTRICTION_LABELS = {"no_restriction": "No restriction", "gluten_free": "Gluten-free", "peanut_free": "Peanut-free",
                       "nut_free": "Nut-free", "milk_free": "Milk-free", "free_of_all_six": "Free of all six"}
-ALLERGENS = [("peanut", "Peanut"), ("tree_nut", "Tree nut"), ("milk", "Milk"), ("gluten", "Gluten"),
-             ("soy", "Soy"), ("egg", "Egg")]
-LISTED = "('contains', 'varies', 'may_contain')"
 
 # Google Sans Code, the blog's font, as static instances of its variable font (OFL, scripts/fonts/OFL.txt)
 for ttf in (Path(__file__).resolve().parent / "fonts").glob("*.ttf"):
@@ -336,28 +334,17 @@ def main() -> None:
         return query(sql.format(s=s), wh, a.profile)
 
     OUT.mkdir(parents=True, exist_ok=True)
-    allergen_count = " + ".join(f"CAST({k} IN {LISTED} AS INT)" for k, _ in ALLERGENS)
-    allergens_vs_popularity(q(f"SELECT candy, win_percent, CAST(chocolate AS STRING) AS chocolate, "
-                              f"{allergen_count} AS n_allergens FROM {{s}}.gold_candy_profile WHERE n_evidence >= 2"))
-    bowls = q("SELECT restriction, candies_allowed, popularity_kept_pct, median_sugars_100g FROM {s}.gold_bowl_summary")
-    popularity_retained(bowls)
-    chocolate_share(q("SELECT b.restriction, CASE WHEN p.chocolate THEN 'Chocolate' ELSE 'Not chocolate' END "
-                      "AS candy_type, COUNT(*) AS candies FROM {s}.gold_bowls AS b "
-                      "INNER JOIN {s}.gold_candy_profile AS p ON p.candy = b.candy GROUP BY 1, 2"))
-    sugar_by_bowl(bowls)
-    allergen_heatmap(q("SELECT popularity_rank, candy, peanut, tree_nut, milk, gluten, soy, egg "
-                       "FROM {s}.gold_candy_profile WHERE popularity_rank <= 20 ORDER BY popularity_rank"))
-    matching_methods(q("SELECT method, candies_matched, non_candy_products FROM {s}.gold_match_methods"))
-    label_changes(q("SELECT outcome, COUNT(*) AS candies FROM (SELECT candy, CASE "
-                    "WHEN MAX(CASE WHEN comparison = 'changed' THEN 1 ELSE 0 END) = 1 THEN 'Changed' "
-                    "WHEN MAX(CASE WHEN comparison = 'unchanged' THEN 1 ELSE 0 END) = 1 THEN 'Unchanged' "
-                    "WHEN MAX(CASE WHEN comparison = 'newly_covered' THEN 1 ELSE 0 END) = 1 THEN 'Newly covered' "
-                    "ELSE 'Not enough current data' END AS outcome FROM {s}.gold_label_changes GROUP BY candy) "
-                    "GROUP BY outcome"))
-    warning_cost(q("SELECT * FROM {s}.gold_warning_cost"))
-    safe_swaps(q("SELECT * FROM {s}.gold_safe_swaps WHERE restriction = 'peanut_free'"))
-    street_bowl(q("SELECT candy, win_percent, to_json(safe_for) AS safe_for FROM {s}.gold_street_bowl"))
-
+    d = load(q)
+    allergens_vs_popularity(d["candies"])
+    popularity_retained(d["bowls"])
+    chocolate_share(d["bowl_mix"])
+    sugar_by_bowl(d["bowls"])
+    allergen_heatmap(d["heatmap"])
+    matching_methods(d["methods"])
+    label_changes(d["outcomes"])
+    warning_cost(d["warning_cost"])
+    safe_swaps([r for r in d["swaps"] if r["restriction"] == "peanut_free"])
+    street_bowl(d["street"])
 
 if __name__ == "__main__":
     main()
