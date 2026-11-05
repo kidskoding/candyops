@@ -74,9 +74,10 @@ def chocolate(mix):
         bars = []
         for kind, color in [("Chocolate", "red"), ("Not chocolate", "aqua")]:
             m = counts.get((r, kind))
-            if m:
-                bars.append({"value": int(m["candies"]), "color": color, "text": str(m["candies"]),
-                             "tip": f"{LABELS[r]} bowl\n{kind}: {m['candies']} of 10 candies\n{m['candy_list']}"})
+            # keep both series in every row, so each bar stays in its own series even when it is empty
+            n = int(m["candies"]) if m else 0
+            bars.append({"value": n, "color": color, "text": str(n) if n else "",
+                         "tip": f"{LABELS[r]} bowl\n{kind}: {n} of 10 candies" + (f"\n{m['candy_list']}" if m else "")})
         rows.append({"label": LABELS[r], "bars": bars})
     return {"rows": rows}
 
