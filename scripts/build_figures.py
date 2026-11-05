@@ -73,8 +73,7 @@ def tidy(ax, grid_axis="x"):
     ax.tick_params(length=0)
 
 
-def save(fig, name: str, source: str):
-    fig.text(0.04, 0.025, f"Source: {source}. candyops, github.com/kidskoding/candyops", fontsize=8, color=MUTED)
+def save(fig, name: str):
     fig.savefig(OUT / name, facecolor=BG)
     plt.close(fig)
     print(OUT / name)
@@ -117,7 +116,7 @@ def allergens_vs_popularity(rows):
     ax.set_ylabel("Win rate in head-to-head votes")
     tidy(ax, "y")
     ax.legend(loc="lower right", frameon=False, fontsize=9.5)
-    save(fig, "fig1_allergens_vs_popularity.png", "FiveThirtyEight Candy Power Ranking, Open Food Facts (2017)")
+    save(fig, "fig1_allergens_vs_popularity.png")
 
 
 def popularity_retained(bowls):
@@ -136,7 +135,7 @@ def popularity_retained(bowls):
     ax.set_xlabel("Popularity kept, compared with the unrestricted bowl")
     ax.set_ylabel("Bowl")
     tidy(ax)
-    save(fig, "fig2_popularity_retained.png", "candyops gold_bowl_summary")
+    save(fig, "fig2_popularity_retained.png")
 
 
 def chocolate_share(mix):
@@ -161,7 +160,7 @@ def chocolate_share(mix):
     ax.set_ylabel("Bowl")
     tidy(ax)
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
-    save(fig, "fig3_chocolate_share.png", "candyops gold_bowls and gold_candy_profile")
+    save(fig, "fig3_chocolate_share.png")
 
 
 def sugar_by_bowl(bowls):
@@ -179,7 +178,7 @@ def sugar_by_bowl(bowls):
     ax.set_xlabel("Grams of sugar per 100 g (median)")
     ax.set_ylabel("Bowl")
     tidy(ax)
-    save(fig, "fig4_sugar_by_bowl.png", "candyops gold_bowl_summary")
+    save(fig, "fig4_sugar_by_bowl.png")
 
 
 def allergen_heatmap(candies):
@@ -212,7 +211,7 @@ def allergen_heatmap(candies):
                ("not_listed", "Not listed")]]
     legend.append(Patch(facecolor=BG, edgecolor=GRID, hatch="////", label="Unknown"))
     fig.legend(handles=legend, loc="lower center", bbox_to_anchor=(0.62, 0.035), ncol=5, frameon=False, fontsize=8.5)
-    save(fig, "fig5_allergen_heatmap.png", "candyops gold_candy_profile")
+    save(fig, "fig5_allergen_heatmap.png")
 
 
 def matching_methods(methods):
@@ -234,7 +233,7 @@ def matching_methods(methods):
     ax.set_ylim(0, 95)
     tidy(ax, "y")
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
-    save(fig, "fig6_matching_methods.png", "candyops gold_match_methods")
+    save(fig, "fig6_matching_methods.png")
 
 
 def label_changes(outcomes):
@@ -252,7 +251,7 @@ def label_changes(outcomes):
     ax.set_xlabel("Candies")
     ax.set_ylabel("2017 status compared with current labels")
     tidy(ax)
-    save(fig, "fig7_label_changes.png", "candyops gold_label_changes")
+    save(fig, "fig7_label_changes.png")
 
 
 def warning_cost(rows):
@@ -274,7 +273,7 @@ def warning_cost(rows):
     ax.set_ylabel("Bowl")
     tidy(ax)
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
-    save(fig, "fig8_warning_cost.png", "candyops gold_warning_cost")
+    save(fig, "fig8_warning_cost.png")
 
 
 def safe_swaps(rows):
@@ -296,7 +295,7 @@ def safe_swaps(rows):
     ax.set_ylabel("Favorite in the unrestricted bowl")
     tidy(ax)
     ax.legend(loc="lower center", bbox_to_anchor=(0.4, 1.0), ncol=2, frameon=False, fontsize=9.5)
-    save(fig, "fig9_safe_swaps.png", "candyops gold_safe_swaps")
+    save(fig, "fig9_safe_swaps.png")
 
 
 def street_bowl(rows):
@@ -316,7 +315,7 @@ def street_bowl(rows):
     ax.set_xlabel("Win rate in head-to-head votes")
     ax.set_ylabel("Candy in the street bowl")
     tidy(ax)
-    save(fig, "fig10_street_bowl.png", "candyops gold_street_bowl; allergy rates from Gupta et al., Pediatrics 2018")
+    save(fig, "fig10_street_bowl.png")
 
 
 def main() -> None:
