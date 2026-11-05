@@ -61,7 +61,7 @@ def popularity(bowls):
         "label": LABELS[r],
         "bars": [{"value": float(by[r]["popularity_kept_pct"]), "color": "gray" if r == "no_restriction" else "red",
                   "tip": f"{LABELS[r]} bowl\n{pct(by[r]['popularity_kept_pct'])} popularity score\n"
-                         f"{by[r]['candies_allowed']} eligible candies\nBowl: {by[r]['bowl']}"}],
+                         f"{by[r]['candies_allowed']} eligible candies\n\nBowl: {by[r]['bowl']}"}],
         "valueText": pct(by[r]["popularity_kept_pct"]),
         "note": f"{by[r]['candies_allowed']} eligible candies",
     } for r in ORDER]}
@@ -76,8 +76,9 @@ def chocolate(mix):
             m = counts.get((r, kind))
             # keep both series in every row, so each bar stays in its own series even when it is empty
             n = int(m["candies"]) if m else 0
+            listing = f"\n\n{m['candy_list']}" if m else ""
             bars.append({"value": n, "color": color, "text": str(n) if n else "",
-                         "tip": f"{LABELS[r]} bowl\n{kind}: {n} of 10 candies" + (f"\n{m['candy_list']}" if m else "")})
+                         "tip": f"{LABELS[r]} bowl\n{kind}: {n} of 10 candies{listing}"})
         rows.append({"label": LABELS[r], "bars": bars})
     return {"rows": rows}
 
@@ -116,7 +117,7 @@ def label_changes(outcomes):
         o = by.get(name)
         if not o:
             continue
-        listing = "" if name == "Not enough current data" else f"\n{o['candy_list']}"
+        listing = "" if name == "Not enough current data" else f"\n\n{o['candy_list']}"
         rows.append({"label": name, "bars": [{"value": int(o["candies"]), "color": color,
                                               "tip": f"{name}: {o['candies']} candies{listing}"}],
                      "valueText": str(o["candies"])})
@@ -133,7 +134,7 @@ def warning_cost(rows):
             "label": LABELS[r["restriction"]],
             "a": {"value": a, "tip": f"{LABELS[r['restriction']]}, warnings exclude\n{pct(a)} popularity score"},
             "b": {"value": b, "tip": f"{LABELS[r['restriction']]}, warnings accepted\n{pct(b)} popularity score\n"
-                                     f"Candies added: {added}"},
+                                     f"\nCandies added: {added}"},
             "note": f"+{b - a:.1f}" if b > a else "no change",
         })
     return {"rows": out}
