@@ -1,11 +1,13 @@
 """Draw the blog figures from the Databricks gold tables into docs/figures/ (uses the databricks CLI's auth).
 
     uv run --with matplotlib python scripts/build_figures.py [--profile NAME] [--schema candyops]
+    uv run --with matplotlib python scripts/build_figures.py --theme dark --out DIR   # for the dark blog
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -20,24 +22,43 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from write_results import ROOT, WAREHOUSE, cli, query  # noqa: E402
 
 OUT = ROOT / "docs" / "figures"
-INK, MUTED, GRID, BG = "#1F1A24", "#6B6375", "#ECE8F0", "#FFFFFF"
-ORANGE, PURPLE, GREY = "#C2410C", "#7C3AED", "#A8A29E"  # validated for a white surface
-SEVERITY = {"contains": "#9A3412", "varies": "#EA580C", "may_contain": "#FB923C",
-            "not_listed": "#F1EFEC", "unknown": "#FFFFFF"}
+# Each theme's chart colors were checked with the dataviz palette validator against its background.
+THEMES = {
+    "light": {"INK": "#1F1A24", "MUTED": "#6B6375", "GRID": "#ECE8F0", "BG": "#FFFFFF",
+              "ORANGE": "#C2410C", "PURPLE": "#7C3AED", "LAVENDER": "#A78BFA", "GREY": "#A8A29E",
+              "SEVERITY": {"contains": "#9A3412", "varies": "#EA580C", "may_contain": "#FB923C",
+                           "not_listed": "#F1EFEC", "unknown": "#FFFFFF"}},
+    # gruvbox dark, the blog's palette: fg, fg2, bg2, bg; orange, purple, aqua, fg3; orange ramp bright to faded
+    "dark": {"INK": "#EBDBB2", "MUTED": "#A89984", "GRID": "#3C3836", "BG": "#282828",
+             "ORANGE": "#FE8019", "PURPLE": "#D3869B", "LAVENDER": "#8EC07C", "GREY": "#7C6F64",
+             "SEVERITY": {"contains": "#FE8019", "varies": "#D65D0E", "may_contain": "#AF3A03",
+                          "not_listed": "#3C3836", "unknown": "#282828"}},
+}
+INK = MUTED = GRID = BG = ORANGE = PURPLE = LAVENDER = GREY = ""
+SEVERITY: dict[str, str] = {}
+
+
+def apply_theme(name: str) -> None:
+    globals().update(THEMES[name])
+    plt.rcParams.update({"text.color": INK, "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": INK,
+                         "axes.edgecolor": GRID, "axes.facecolor": BG, "figure.facecolor": BG})
 RESTRICTION_LABELS = {"no_restriction": "No restriction", "gluten_free": "Gluten-free", "peanut_free": "Peanut-free",
                       "nut_free": "Nut-free", "milk_free": "Milk-free", "free_of_all_six": "Free of all six"}
 ALLERGENS = [("peanut", "Peanut"), ("tree_nut", "Tree nut"), ("milk", "Milk"), ("gluten", "Gluten"),
              ("soy", "Soy"), ("egg", "Egg")]
 LISTED = "('contains', 'varies', 'may_contain')"
 
-FONT = next((f for f in ["TeX Gyre Heros", "Liberation Sans", "DejaVu Sans"]
+# Google Sans Code, the blog's font, as static instances of its variable font (OFL, scripts/fonts/OFL.txt)
+for ttf in (Path(__file__).resolve().parent / "fonts").glob("*.ttf"):
+    font_manager.fontManager.addfont(str(ttf))
+FONT = next((f for f in ["Google Sans Code", "TeX Gyre Heros", "Liberation Sans", "DejaVu Sans"]
              if any(f == x.name for x in font_manager.fontManager.ttflist)), "DejaVu Sans")
-plt.rcParams.update({"font.family": FONT, "text.color": INK, "axes.labelcolor": MUTED, "xtick.color": MUTED,
-                     "ytick.color": INK, "axes.edgecolor": GRID, "font.size": 11})
+plt.rcParams.update({"font.family": FONT, "font.size": 11})
 
 
 def figure(title: str, subtitle: str, height: float = 5.0):
-    fig = plt.figure(figsize=(8, height), dpi=200, facecolor=BG)
+    # monospace text runs about 20% wider: a 1.2x larger canvas at 1/1.2 the dpi keeps the pixel size, shrinks the text
+    fig = plt.figure(figsize=(8 * 1.2, height * 1.2), dpi=200 / 1.2, facecolor=BG)
     fig.text(0.04, 1 - 0.32 / height, title, fontsize=16, fontweight="bold", va="top")
     fig.text(0.04, 1 - 0.72 / height, subtitle, fontsize=10.5, color=MUTED, va="top")
     return fig
@@ -212,7 +233,7 @@ def label_changes(outcomes):
     fig = figure(f"{counts.get('Changed', 0)} of {compared} candies with current data changed allergen status",
                  "Each candy's 2017 status compared with products edited since the daily change feed started")
     ax = fig.add_axes([0.27, 0.17, 0.67, 0.61])
-    colors = {"Changed": ORANGE, "Unchanged": PURPLE, "Newly covered": "#A78BFA", "Not enough current data": GREY}
+    colors = {"Changed": ORANGE, "Unchanged": PURPLE, "Newly covered": LAVENDER, "Not enough current data": GREY}
     values = [counts.get(o, 0) for o in order]
     ax.barh(order, values, color=[colors[o] for o in order], height=0.62)
     for i, v in enumerate(values):
@@ -222,12 +243,78 @@ def label_changes(outcomes):
     save(fig, "fig7_label_changes.png", "candyops gold_label_changes")
 
 
+def warning_cost(rows):
+    rows = sorted(rows, key=lambda r: float(r["popularity_kept_strict_pct"]))
+    fig = figure("\"May contain\" warnings cost the peanut-free bowl 7.9 points",
+                 "Popularity kept by each bowl when may-contain warnings exclude a candy, and when they are accepted")
+    ax = fig.add_axes([0.2, 0.17, 0.74, 0.58])
+    for i, r in enumerate(rows):
+        strict, relaxed = float(r["popularity_kept_strict_pct"]), float(r["popularity_kept_with_warnings_pct"])
+        ax.plot([strict, relaxed], [i, i], color=GRID if strict == relaxed else MUTED, linewidth=2, zorder=1)
+        ax.scatter([strict], [i], s=70, color=PURPLE, zorder=3, label="Warnings exclude" if i == 0 else None)
+        ax.scatter([relaxed], [i], s=70, color=ORANGE, zorder=3, label="Warnings accepted" if i == 0 else None)
+        note = f"+{relaxed - strict:.1f}" if relaxed > strict else "no change"
+        ax.text(max(strict, relaxed) + 1, i, note, va="center", fontsize=9.5, color=INK if relaxed > strict else MUTED)
+    ax.set_yticks(range(len(rows)), [RESTRICTION_LABELS[r["restriction"]] for r in rows])
+    ax.set_xlim(60, 100)
+    ax.set_xticks(range(60, 101, 10), [f"{v}%" for v in range(60, 101, 10)])
+    ax.set_xlabel("Popularity kept, compared with the unrestricted bowl")
+    tidy(ax)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False, fontsize=9.5)
+    save(fig, "fig8_warning_cost.png", "candyops gold_warning_cost")
+
+
+def safe_swaps(rows):
+    rows = sorted(rows, key=lambda r: int(r["favorite_rank"]), reverse=True)
+    fig = figure("The closest peanut-free swap for each favorite",
+                 "Most similar peanut-free candy by FiveThirtyEight's traits, sugar and price, with both win rates",
+                 5.8)
+    ax = fig.add_axes([0.33, 0.12, 0.6, 0.68])
+    for i, r in enumerate(rows):
+        fav, swap = float(r["favorite_win_percent"]), float(r["swap_win_percent"])
+        ax.plot([swap, fav], [i, i], color=MUTED, linewidth=1.5, zorder=1)
+        ax.scatter([fav], [i], s=60, color=ORANGE, zorder=3, label="Favorite" if i == 0 else None)
+        ax.scatter([swap], [i], s=60, color=PURPLE, zorder=3, label="Peanut-free swap" if i == 0 else None)
+        ax.text(swap - 1.2, i, r["swap"], ha="right", va="center", fontsize=9)
+    ax.set_yticks(range(len(rows)), [r["favorite"] for r in rows], fontsize=9.5)
+    ax.set_xlim(10, 90)
+    ax.set_xticks(range(20, 91, 10), [f"{v}%" for v in range(20, 91, 10)])
+    ax.set_xlabel("Win rate in head-to-head votes")
+    tidy(ax)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.4, 1.0), ncol=2, frameon=False, fontsize=9.5)
+    save(fig, "fig9_safe_swaps.png", "candyops gold_safe_swaps")
+
+
+def street_bowl(rows):
+    rows = sorted(rows, key=lambda r: float(r["win_percent"]))
+    safe = [len(json.loads(r["safe_for"])) > 0 if isinstance(r["safe_for"], str) else bool(r["safe_for"])
+            for r in rows]
+    fig = figure("One swap gives every allergic kid something to eat",
+                 "The bowl that gives the most kids a favorite, weighting allergies by how common they are", 5.6)
+    ax = fig.add_axes([0.3, 0.13, 0.64, 0.66])
+    values = [float(r["win_percent"]) for r in rows]
+    ax.barh([r["candy"] for r in rows], values, color=[ORANGE if s else GREY for s in safe], height=0.62)
+    for i, (v, s) in enumerate(zip(values, safe, strict=True)):
+        label = f"{v:.1f}%" + ("  allergy-safe, replaces Butterfinger" if s else "")
+        ax.text(v + 1, i, label, va="center", fontsize=9, color=INK if s else MUTED)
+    ax.set_xlim(0, 150)
+    ax.set_xticks(range(0, 101, 25), [f"{v}%" for v in range(0, 101, 25)])
+    ax.set_xlabel("Win rate in head-to-head votes")
+    tidy(ax)
+    save(fig, "fig10_street_bowl.png", "candyops gold_street_bowl; allergy rates from Gupta et al., Pediatrics 2018")
+
+
 def main() -> None:
+    global OUT
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile")
     ap.add_argument("--catalog", default="workspace")
     ap.add_argument("--schema", default="candyops")
+    ap.add_argument("--theme", choices=sorted(THEMES), default="light")
+    ap.add_argument("--out", type=Path, default=OUT)
     a = ap.parse_args()
+    OUT = a.out
+    apply_theme(a.theme)
     wh = next(w["id"] for w in cli(["warehouses", "list"], a.profile) if w["name"] == WAREHOUSE)
     s = f"`{a.catalog}`.`{a.schema}`"
 
@@ -253,6 +340,9 @@ def main() -> None:
                     "WHEN MAX(CASE WHEN comparison = 'newly_covered' THEN 1 ELSE 0 END) = 1 THEN 'Newly covered' "
                     "ELSE 'Not enough current data' END AS outcome FROM {s}.gold_label_changes GROUP BY candy) "
                     "GROUP BY outcome"))
+    warning_cost(q("SELECT * FROM {s}.gold_warning_cost"))
+    safe_swaps(q("SELECT * FROM {s}.gold_safe_swaps WHERE restriction = 'peanut_free'"))
+    street_bowl(q("SELECT candy, win_percent, to_json(safe_for) AS safe_for FROM {s}.gold_street_bowl"))
 
 
 if __name__ == "__main__":
